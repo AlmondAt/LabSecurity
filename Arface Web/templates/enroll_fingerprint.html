@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pendaftaran Sidik Jari</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sistem Kontrol Akses</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2>Pendaftaran Sidik Jari</h2>
+        <p class="text-muted">Langkah 2 dari 3: Sidik Jari</p>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Pendaftaran Sidik Jari untuk: {{ user.name }}</h5>
+                <div class="alert alert-info" id="instructions">
+                    <p>Ikuti petunjuk untuk mendaftarkan sidik jari:</p>
+                    <ol>
+                        <li>Klik tombol "Mulai Pendaftaran" di bawah</li>
+                        <li>Tempelkan jari pada sensor sidik jari</li>
+                        <li>Angkat jari ketika diminta</li>
+                        <li>Tempelkan jari yang sama sekali lagi ketika diminta</li>
+                        <li>Tunggu proses selesai</li>
+                    </ol>
+                </div>
+                
+                <div id="status-area" class="mb-3">
+                    <div class="progress mb-3" style="display: none;" id="progress-bar-container">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="progress-bar"></div>
+                    </div>
+                    <div class="alert alert-success" style="display: none;" id="success-message"></div>
+                    <div class="alert alert-danger" style="display: none;" id="error-message"></div>
+                </div>
+                
+                <button id="start-button" class="btn btn-primary">Mulai Pendaftaran</button>
+                <button id="next-button" class="btn btn-success" style="display: none;">Lanjut ke Pendaftaran Wajah</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const userId = "{{ user.user_id }}";
+            let enrollmentStep = 0;
+            const messages = [
+                "Mempersiapkan sensor...",
+                "Silakan tempelkan jari pada sensor...",
+                "Membaca sidik jari...",
+                "Angkat jari dari sensor...",
+                "Tempelkan jari yang sama sekali lagi...",
+                "Membaca sidik jari kedua...",
+                "Memproses...",
+                "Menyimpan data sidik jari..."
+            ];
+            
+            $("#start-button").click(function() {
+                startEnrollment();
+            });
+            
+            function startEnrollment() {
+                $("#start-button").prop("disabled", true);
+                $("#progress-bar-container").show();
+                $("#progress-bar").css("width", "0%");
+                
+                // Simulasi proses
+                enrollmentStep = 0;
+                updateStatus();
+                
+                // Kirim permintaan ke server
+                $.ajax({
+                    url: "/api/enroll_fingerprint",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ user_id: userId }),
+                    success: function(response) {
+                        if (response.success) {
+                            $("#progress-bar").css("width", "100%");
+                            $("#success-message").text(response.message).show();
+                            $("#next-button").show().click(function() {
+                                window.location.href = response.next_url;
+                            });
+                        } else {
+                            $("#error-message").text(response.message).show();
+                            $("#start-button").prop("disabled", false);
+                        }
+                    },
+                    error: function() {
+                        $("#error-message").text("Terjadi kesalahan saat menghubungi server").show();
+                        $("#start-button").prop("disabled", false);
+                    }
+                });
+            }
+            
+            function updateStatus() {
+                if (enrollmentStep < messages.length) {
+                    $("#instructions").html("<p>" + messages[enrollmentStep] + "</p>");
+                    $("#progress-bar").css("width", (enrollmentStep / messages.length * 100) + "%");
+                    enrollmentStep++;
+                    setTimeout(updateStatus, 1500);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

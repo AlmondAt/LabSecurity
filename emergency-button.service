@@ -1,0 +1,16 @@
+[Unit]
+Description=Emergency Button Service for Selenoid
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/home/pi/ArcFace
+ExecStart=/usr/bin/python3 /home/pi/ArcFace/emergency_service.py
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=emergency_button
+
+[Install]
+WantedBy=multi-user.target 

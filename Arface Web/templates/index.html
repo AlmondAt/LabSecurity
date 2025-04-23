@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Kontrol Akses</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sistem Kontrol Akses</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Beranda</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/users">Pengguna</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/register">Tambah Pengguna</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="jumbotron">
+            <h1 class="display-4">Selamat Datang di Sistem Kontrol Akses</h1>
+            <p class="lead">Sistem ini menggunakan teknologi pengenalan wajah dan sidik jari untuk keamanan.</p>
+            <hr class="my-4">
+            <p>Gunakan menu di atas untuk navigasi sistem.</p>
+            <a class="btn btn-primary btn-lg" href="/register" role="button">Daftarkan Pengguna Baru</a>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Manajemen Pengguna</h5>
+                        <p class="card-text">Tambah, edit, dan hapus pengguna dari sistem kontrol akses.</p>
+                        <a href="/users" class="btn btn-primary">Lihat Pengguna</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Pendaftaran Baru</h5>
+                        <p class="card-text">Daftarkan pengguna baru dengan sidik jari dan wajah.</p>
+                        <a href="/register" class="btn btn-success">Daftarkan Pengguna</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Status Sistem</h5>
+                        <p class="card-text">Sistem aktif dan berjalan normal.</p>
+                        <p class="text-success">Online</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <p>© 2025 Sistem Kontrol Akses. Semua hak dilindungi.</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

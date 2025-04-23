@@ -1,0 +1,7 @@
+echo __pycache__/ > .gitignore
+echo *.pyc >> .gitignore
+echo *.pkl >> .gitignore
+echo photos/ >> .gitignore
+echo unknown_faces/ >> .gitignore
+echo *.db >> .gitignore
+echo *.log >> .gitignore

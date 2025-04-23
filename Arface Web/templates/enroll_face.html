@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pendaftaran Wajah</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body data-user-id="{{ user.user_id }}" data-user-name="{{ user.name }}">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Sistem Kontrol Akses</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2>Pendaftaran Wajah</h2>
+        <p class="text-muted">Langkah 3 dari 3: Wajah</p>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Pendaftaran Wajah untuk: {{ user.name }}</h5>
+                
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera" type="button" role="tab">Ambil Foto</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">Upload Foto</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content mt-3" id="myTabContent">
+                    <div class="tab-pane fade show active" id="camera" role="tabpanel">
+                        <div class="text-center">
+                            <div id="camera-container" class="mb-3">
+                                <video id="video" width="640" height="480" autoplay></video>
+                                <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+                            </div>
+                            <button id="capture-button" class="btn btn-primary">Ambil Foto</button>
+                            <p class="text-muted mt-2">Posisikan wajah Anda terlihat jelas dan frontal.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="upload" role="tabpanel">
+                        <form id="upload-form" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="face-file" class="form-label">Pilih Foto Wajah</label>
+                                <input class="form-control" type="file" id="face-file" name="file" accept="image/*">
+                                <div class="form-text">Pilih foto dengan wajah yang terlihat jelas.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Upload</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div id="status-area" class="mt-3">
+                    <div class="alert alert-success" style="display: none;" id="success-message"></div>
+                    <div class="alert alert-danger" style="display: none;" id="error-message"></div>
+                </div>
+                
+                <button id="finish-button" class="btn btn-success" style="display: none;">Selesai</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Mendapatkan ID pengguna dari template
+            const userId = "{{ user.user_id }}";
+            let stream = null;
+            let video = document.getElementById('video');
+            let canvas = document.getElementById('canvas');
+            let context = canvas.getContext('2d');
+            
+            // Akses kamera
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(s) {
+                    stream = s;
+                    video.srcObject = stream;
+                })
+                .catch(function(err) {
+                    $("#error-message").text("Tidak dapat mengakses kamera: " + err.message).show();
+                });
+            
+            // Ambil foto dari kamera
+            $("#capture-button").click(function() {
+                context.drawImage(video, 0, 0, 640, 480);
+                let imageData = canvas.toDataURL('image/jpeg');
+                
+                $.ajax({
+                    url: '/api/capture_face',
+                    type: 'POST',
+                    data: {
+                        user_id: userId,
+                        image: imageData
+                    },
+                    success: function(response) {
+                        handleResponse(response);
+                    },
+                    error: function() {
+                        $("#error-message").text("Terjadi kesalahan saat mengirim foto").show();
+                    }
+                });
+            });
+            
+            // Upload foto
+            $("#upload-form").submit(function(e) {
+                e.preventDefault();
+                
+                let formData = new FormData(this);
+                formData.append('user_id', userId);
+                
+                $.ajax({
+                    url: '/api/upload_face',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        handleResponse(response);
+                    },
+                    error: function() {
+                        $("#error-message").text("Terjadi kesalahan saat mengupload foto").show();
+                    }
+                });
+            });
+            
+            function handleResponse(response) {
+                if (response.success) {
+                    $("#success-message").text(response.message).show();
+                    $("#error-message").hide();
+                    
+                    // Matikan kamera
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    // Sembunyikan kontrol kamera/upload
+                    $("#camera-container, #capture-button, #upload-form").hide();
+                    
+                    // Tampilkan tombol selesai
+                    $("#finish-button").show().click(function() {
+                        window.location.href = response.next_url;
+                    });
+                } else {
+                    $("#error-message").text(response.message).show();
+                    $("#success-message").hide();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
