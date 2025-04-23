@@ -1,7 +1,51 @@
-echo __pycache__/ > .gitignore
-echo *.pyc >> .gitignore
-echo *.pkl >> .gitignore
-echo photos/ >> .gitignore
-echo unknown_faces/ >> .gitignore
-echo *.db >> .gitignore
-echo *.log >> .gitignore
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+
+# Model files
+*.pkl
+*.pt
+*.onnx
+*.h5
+
+# SQLite database
+*.db
+
+# Logs and dumps
+*.log
+
+# Embeddings
+embeddings.pkl
+converted_embeddings.pkl
+
+# Face data folders
+photos/
+faces/
+unknown_faces/
+data/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VSCode/IDE folders
+.vscode/
+.idea/
+
+# Shell artifacts
+*.sh
+
+# Emergency services and unit files
+*.service
+
+# Ignore secret configs
+.env
+
+# Ignore backups
+*.bak
+*.old
