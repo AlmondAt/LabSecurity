@@ -8,26 +8,20 @@ venv/
 env/
 
 # Model files
-*.pkl
 *.pt
 *.onnx
 *.h5
 
 # SQLite database
-*.db
 
 # Logs and dumps
 *.log
 
 # Embeddings
-embeddings.pkl
-converted_embeddings.pkl
+
 
 # Face data folders
-photos/
-faces/
-unknown_faces/
-data/
+
 
 # System files
 .DS_Store
@@ -38,7 +32,7 @@ Thumbs.db
 .idea/
 
 # Shell artifacts
-*.sh
+
 
 # Emergency services and unit files
 *.service
