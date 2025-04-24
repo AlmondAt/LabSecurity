@@ -38,7 +38,7 @@ except ImportError:
     SELENOID_AVAILABLE = False
 
 # Konfigurasi sensor sidik jari
-PORT = 'ttyUSB0'   # Ubah kalau port-nya beda
+PORT = '/dev/ttyUSB0'   # Ubah kalau port-nya beda
 BAUDRATE = 57600
 
 # Konfigurasi kamera
