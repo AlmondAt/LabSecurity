@@ -10,7 +10,9 @@ from head_pose import calculate_face_orientation, draw_face_orientation, is_face
 # Parsing argumen
 parser = argparse.ArgumentParser(description='Pengambilan Foto dan Ekstraksi Embedding')
 parser.add_argument('--name', type=str, default='fariz', help='Nama orang (default: fariz)')
-parser.add_argument('--camera', type=int, default=0, help='Indeks kamera (default: 0)')
+parser.add_argument('--camera', type=str, default='/dev/video1', help='Perangkat kamera (default: /dev/video1)')
+parser.add_argument('--camera_alt', type=str, default='/dev/video2', help='Perangkat kamera alternatif (default: /dev/video2)')
+parser.add_argument('--camera_idx', type=int, default=0, help='Indeks kamera fallback (default: 0)')
 parser.add_argument('--embeddings', type=str, default='data/embeddings.pkl', help='Path file embedding')
 parser.add_argument('--show_list', action='store_true', help='Tampilkan daftar orang dalam database')
 parser.add_argument('--show_angles', action='store_true', help='Tampilkan sudut orientasi wajah')
@@ -29,6 +31,26 @@ def show_database_entries(embeddings_path):
     for i, name in enumerate(embeddings_dict.keys(), 1):
         print(f"{i}. {name}")
     print("="*25)
+
+def initialize_camera():
+    """Inisialisasi kamera untuk pengenalan wajah dengan mencoba beberapa perangkat"""
+    devices_to_try = [args.camera, args.camera_alt, args.camera_idx]
+    
+    for device in devices_to_try:
+        try:
+            print(f"Mencoba membuka kamera: {device}")
+            cap = cv2.VideoCapture(device)
+            if cap.isOpened():
+                print(f"Berhasil membuka kamera: {device}")
+                return cap
+            else:
+                print(f"Gagal membuka kamera: {device}")
+                cap.release()
+        except Exception as e:
+            print(f"Error saat membuka kamera {device}: {e}")
+    
+    print("GAGAL: Tidak dapat membuka kamera manapun")
+    return None
 
 def main():
     # Jika user hanya ingin melihat daftar
@@ -50,10 +72,10 @@ def main():
     show_database_entries(args.embeddings)
     
     # Buka kamera
-    cap = cv2.VideoCapture(args.camera)
+    cap = initialize_camera()
     
-    if not cap.isOpened():
-        print(f"Gagal membuka kamera {args.camera}")
+    if not cap:
+        print("Pembatalan pengambilan foto karena kamera tidak tersedia.")
         return
     
     # Buat direktori untuk menyimpan foto

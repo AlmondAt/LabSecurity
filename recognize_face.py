@@ -8,145 +8,141 @@ from head_pose import calculate_face_orientation, draw_face_orientation, is_face
 
 # Parsing argumen
 parser = argparse.ArgumentParser(description='Pengenalan Wajah dengan MTCNN dan ArcFace')
-parser.add_argument('--camera', type=int, default=0, help='Indeks kamera (default: 0)')
+parser.add_argument('--camera', type=str, default='/dev/video1', help='Perangkat kamera (default: /dev/video1)')
+parser.add_argument('--camera_alt', type=str, default='/dev/video2', help='Perangkat kamera alternatif (default: /dev/video2)')
+parser.add_argument('--camera_idx', type=int, default=0, help='Indeks kamera fallback (default: 0)')
 parser.add_argument('--embeddings', type=str, default='data/embeddings.pkl', help='Path file embedding')
 parser.add_argument('--threshold', type=float, default=0.6, help='Threshold cosine similarity (0-1, default: 0.6)')
 parser.add_argument('--show_fps', action='store_true', help='Tampilkan FPS')
 parser.add_argument('--show_angles', action='store_true', help='Tampilkan sudut orientasi wajah')
 args = parser.parse_args()
 
+def initialize_camera():
+    """Inisialisasi kamera untuk pengenalan wajah dengan mencoba beberapa perangkat"""
+    devices_to_try = [args.camera, args.camera_alt, args.camera_idx]
+    
+    for device in devices_to_try:
+        try:
+            print(f"Mencoba membuka kamera: {device}")
+            cap = cv2.VideoCapture(device)
+            if cap.isOpened():
+                print(f"Berhasil membuka kamera: {device}")
+                return cap
+            else:
+                print(f"Gagal membuka kamera: {device}")
+                cap.release()
+        except Exception as e:
+            print(f"Error saat membuka kamera {device}: {e}")
+    
+    print("GAGAL: Tidak dapat membuka kamera manapun")
+    return None
+
 def main():
-    # Buka kamera
-    cap = cv2.VideoCapture(args.camera)
-    
-    if not cap.isOpened():
-        print(f"Gagal membuka kamera {args.camera}")
-        return
-    
-    # Muat database embedding
+    # Muat embedding dari file
     embeddings_dict = load_embeddings(args.embeddings)
+    
     if not embeddings_dict:
-        print("Database embedding kosong. Jalankan capture_face.py terlebih dahulu.")
+        print("Error: File embedding tidak ditemukan atau kosong.")
         return
     
-    print(f"Database berisi {len(embeddings_dict)} orang:")
-    for name in embeddings_dict:
-        print(f"  - {name}")
+    print(f"Memuat {len(embeddings_dict)} embedding dari {args.embeddings}")
     
-    print("\nPengenalan Wajah dengan MTCNN dan ArcFace")
-    print(f"Threshold similarity: {args.threshold}")
-    print("Tekan 'q' untuk keluar")
-    print("Tekan 'a' untuk mengaktifkan/menonaktifkan penampilan sudut wajah")
+    # Inisialisasi kamera
+    cap = initialize_camera()
+    if not cap:
+        print("Tidak dapat membuka kamera. Program dihentikan.")
+        return
     
-    # Variabel untuk mengukur FPS
-    prev_frame_time = 0
+    # Setup tampilan jendela
+    cv2.namedWindow('Pengenalan Wajah', cv2.WINDOW_NORMAL)
     
-    # Pengaturan jendela
-    cv2.namedWindow("Face Recognition", cv2.WINDOW_NORMAL)
+    # FPS counter
+    fps_counter = 0
+    fps_start_time = time.time()
+    fps = 0
     
-    # Interval pengenalan untuk mengurangi beban CPU
-    recognition_interval = 0.3  # detik
-    last_recognition_time = 0
-    
-    # Status penampilan sudut wajah
-    show_angles = args.show_angles  # Status awal berdasarkan argumen
+    print("Program pengenalan wajah berjalan...")
+    print("Tekan 'q' untuk keluar.")
     
     while True:
-        # Hitung FPS
-        current_frame_time = time.time()
-        fps = 1 / (current_frame_time - prev_frame_time) if prev_frame_time > 0 else 0
-        prev_frame_time = current_frame_time
-        
         # Baca frame dari kamera
         ret, frame = cap.read()
         if not ret:
             print("Gagal membaca frame dari kamera!")
             break
         
+        # Update FPS counter
+        fps_counter += 1
+        if time.time() - fps_start_time >= 1:
+            fps = fps_counter
+            fps_counter = 0
+            fps_start_time = time.time()
+        
         # Deteksi wajah dengan MTCNN
         face_img, bbox = detect_face_mtcnn(frame)
         
-        # Jika wajah terdeteksi
-        if face_img is not None and bbox is not None:
+        if bbox is not None:
             # Hitung orientasi wajah
             pitch, yaw, roll = calculate_face_orientation(bbox, frame.shape)
             
-            # Tampilkan sudut wajah jika diaktifkan
-            if show_angles:
+            # Gambar kotak wajah dan orientasi
+            if args.show_angles:
                 frame = draw_face_orientation(frame, bbox, pitch, yaw, roll)
-                
-                # Tambahkan indikator posisi wajah frontal
-                is_frontal = is_face_frontal(pitch, yaw, roll)
-                frontal_status = "FRONTAL" if is_frontal else "TIDAK FRONTAL"
-                frontal_color = (0, 255, 0) if is_frontal else (0, 0, 255)
-                cv2.putText(frame, frontal_status, (frame.shape[1] - 150, 30), 
-                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, frontal_color, 2)
             else:
-                # Gambar kotak wajah (tanpa nama dulu)
                 frame = draw_face_box(frame, bbox)
             
-            # Lakukan pengenalan setiap beberapa interval
-            current_time = time.time()
-            if current_time - last_recognition_time >= recognition_interval:
-                last_recognition_time = current_time
-                
+            # Cek apakah wajah frontal
+            frontal = is_face_frontal(pitch, yaw, roll)
+            
+            # Tampilkan status frontal
+            frontal_text = "FRONTAL" if frontal else "TIDAK FRONTAL"
+            frontal_color = (0, 255, 0) if frontal else (0, 0, 255)
+            cv2.putText(frame, frontal_text, (frame.shape[1] - 150, 30), 
+                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, frontal_color, 2)
+            
+            # Jika wajah frontal, lakukan pengenalan
+            if frontal:
                 # Pra-pemrosesan wajah
                 face_tensor = preprocess_face(face_img)
                 
                 if face_tensor is not None:
-                    # Ekstrak embedding wajah
-                    face_embedding = extract_embedding(face_tensor)
+                    # Ekstrak embedding
+                    embedding = extract_embedding(face_tensor)
                     
-                    # Bandingkan dengan embedding di database
+                    # Cari kecocokan terbaik
                     best_match_name = None
-                    best_match_similarity = 0
+                    best_match_score = 0
                     
-                    for name, stored_embedding in embeddings_dict.items():
-                        similarity = compute_similarity(face_embedding, stored_embedding)
-                        if similarity > best_match_similarity:
-                            best_match_similarity = similarity
-                            best_match_name = name
+                    for name, embeddings_list in embeddings_dict.items():
+                        for ref_embedding in embeddings_list:
+                            similarity = compute_similarity(embedding, ref_embedding)
+                            
+                            if similarity > best_match_score:
+                                best_match_score = similarity
+                                best_match_name = name
                     
-                    # Tampilkan hasil jika melewati threshold
-                    if best_match_similarity >= args.threshold:
-                        # Jika tidak menampilkan sudut wajah, gambar kotak dengan nama
-                        if not show_angles:
-                            frame = draw_face_box(frame, bbox, best_match_name, best_match_similarity)
-                        else:
-                            # Jika menampilkan sudut, tambahkan label nama di atas kotak
-                            cv2.putText(frame, f"{best_match_name} ({best_match_similarity:.2f})", 
-                                     (bbox[0], bbox[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                        
-                        # Tampilkan status pengenalan
-                        status_text = f"Dikenali: {best_match_name} ({best_match_similarity:.2f})"
-                        cv2.putText(frame, status_text, (10, frame.shape[0] - 40), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    # Tampilkan hasil
+                    if best_match_score >= args.threshold:
+                        result_text = f"{best_match_name}: {best_match_score:.4f}"
+                        result_color = (0, 255, 0)  # Hijau untuk kecocokan
                     else:
-                        # Tampilkan status tidak dikenali
-                        status_text = f"Tidak dikenali (similarity: {best_match_similarity:.2f})"
-                        cv2.putText(frame, status_text, (10, frame.shape[0] - 40), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                        result_text = f"Unknown: {best_match_score:.4f}"
+                        result_color = (0, 0, 255)  # Merah untuk tidak dikenal
+                    
+                    cv2.putText(frame, result_text, (10, 30), 
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, result_color, 2)
         
-        # Tampilkan FPS jika diminta
+        # Tampilkan FPS jika diaktifkan
         if args.show_fps:
-            cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        
-        # Tampilkan threshold
-        cv2.putText(frame, f"Threshold: {args.threshold}", (10, frame.shape[0] - 10), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.putText(frame, f"FPS: {fps}", (10, frame.shape[0] - 10), 
+                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         
         # Tampilkan frame
-        cv2.imshow("Face Recognition", frame)
+        cv2.imshow('Pengenalan Wajah', frame)
         
-        # Tangani input keyboard
-        key = cv2.waitKey(1)
-        if key == ord('q'):
+        # Tunggu tombol 'q' untuk keluar
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        elif key == ord('a'):  # Toggle penampilan sudut wajah
-            show_angles = not show_angles
-            status = "aktif" if show_angles else "nonaktif"
-            print(f"Penampilan sudut wajah: {status}")
     
     # Bersihkan
     cap.release()

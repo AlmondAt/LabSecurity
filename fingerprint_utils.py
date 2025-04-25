@@ -42,7 +42,8 @@ PORT = 'COM5'   # Ubah kalau port-nya beda
 BAUDRATE = 57600
 
 # Konfigurasi kamera
-CAMERA_ID = 0  # Sesuaikan dengan ID kamera yang tersedia
+CAMERA_DEVICES = ['/dev/video1', '/dev/video2', 0]  # Coba /dev/video1, /dev/video2, kemudian indeks 0
+CAMERA_ID = 0  # Default kamera untuk kompatibilitas
 
 # Konfigurasi database
 DB_PATH = 'biometrics.db'
@@ -178,9 +179,25 @@ def initialize_sensor():
 def initialize_camera():
     """Inisialisasi kamera untuk pengenalan wajah"""
     try:
-        cap = cv2.VideoCapture(CAMERA_ID)
+        # Coba setiap kemungkinan perangkat kamera
+        for device in CAMERA_DEVICES:
+            print(f"[INFO] Mencoba membuka kamera: {device}")
+            try:
+                cap = cv2.VideoCapture(device)
+                if cap.isOpened():
+                    print(f"[INFO] Berhasil membuka kamera: {device}")
+                    return cap
+                else:
+                    print(f"[INFO] Gagal membuka kamera: {device}")
+                    cap.release()
+            except Exception as e:
+                print(f"[INFO] Error saat membuka kamera {device}: {e}")
+        
+        # Jika semua gagal, coba indeks default sebagai fallback
+        print(f"[INFO] Mencoba kamera default (indeks 0)")
+        cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            raise ValueError("Tidak dapat membuka kamera")
+            raise ValueError("Tidak dapat membuka kamera manapun")
         return cap
     except Exception as e:
         print('[!] Gagal inisialisasi kamera:', e)

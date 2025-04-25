@@ -17,14 +17,16 @@ from arcface_utils import preprocess_face, extract_embedding, compute_similarity
 from head_pose import calculate_face_orientation, is_face_frontal
 
 # Konstanta
-CAMERA_INDEX = 0
+# Gunakan daftar kamera yang akan dicoba secara berurutan
+CAMERA_DEVICES = ['/dev/video1', '/dev/video2', 0]  # Coba /dev/video1 dulu, lalu /dev/video2, lalu indeks 0
 FACE_RECOGNITION_THRESHOLD = 0.6
 UNKNOWN_CAPTURE_DELAY = 2  # Delay capture 2 detik untuk wajah tidak dikenal
 ACCESS_TIMEOUT = 10  # Timeout 10 detik untuk verifikasi wajah setelah sidik jari
 
 class AccessControlSystem:
-    def __init__(self, camera_index=CAMERA_INDEX):
-        self.camera_index = camera_index
+    def __init__(self, camera_devices=CAMERA_DEVICES):
+        self.camera_devices = camera_devices
+        self.camera_index = None  # Akan diisi dengan device yang berhasil dibuka
         self.running = False
         self.cap = None
         
@@ -85,10 +87,26 @@ class AccessControlSystem:
             print("Sistem sudah berjalan")
             return
         
-        # Inisialisasi kamera
-        self.cap = cv2.VideoCapture(self.camera_index)
-        if not self.cap.isOpened():
-            print(f"GAGAL: Tidak dapat membuka kamera {self.camera_index}")
+        # Inisialisasi kamera - coba semua device yang tersedia
+        self.cap = None
+        for device in self.camera_devices:
+            try:
+                print(f"Mencoba membuka kamera {device}...")
+                self.cap = cv2.VideoCapture(device)
+                if self.cap is not None and self.cap.isOpened():
+                    self.camera_index = device
+                    print(f"Berhasil membuka kamera {device}")
+                    break
+                else:
+                    print(f"Tidak dapat membuka kamera {device}")
+            except Exception as e:
+                print(f"Error saat membuka kamera {device}: {e}")
+                if self.cap:
+                    self.cap.release()
+                    self.cap = None
+        
+        if self.cap is None or not self.cap.isOpened():
+            print("GAGAL: Tidak dapat membuka kamera manapun")
             return False
         
         self.running = True
