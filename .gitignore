@@ -43,3 +43,24 @@ Thumbs.db
 # Ignore backups
 *.bak
 *.old
+embeddings.pkl
+data/access_control.db
+Arface Web/arcface.db
+Arface Web/faces/1/face.jpg
+Arface Web/faces/3/face.jpg
+Arface Web/faces/2/face.jpg
+photos/fariz_1.jpg
+photos/fariz_2.jpg
+photos/fariz_3.jpg
+photos/fariz_4.jpg
+photos/fariz_5.jpg
+photos/nugo_1.jpg
+photos/nugo_2.jpg
+photos/nugo_3.jpg
+photos/nugo_4.jpg
+photos/nugo_5.jpg
+photos/yudha_1.jpg
+photos/yudha_2.jpg
+photos/yudha_3.jpg
+photos/yudha_4.jpg
+photos/yudha_5.jpg
