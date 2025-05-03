@@ -176,9 +176,26 @@ def initialize_sensor():
         print('[!] Gagal inisialisasi sensor:', e)
         return None
 
-def initialize_camera():
-    """Inisialisasi kamera untuk pengenalan wajah"""
+def initialize_camera(resolution="480p", fps=15):
+    """
+    Inisialisasi kamera untuk pengenalan wajah
+    
+    Args:
+        resolution (str): Resolusi yang diinginkan ("480p" atau "720p")
+        fps (int): Frame rate yang diinginkan
+    
+    Returns:
+        cv2.VideoCapture: Objek kamera yang sudah diinisialisasi
+    """
     try:
+        # Tentukan pengaturan resolusi
+        if resolution == "720p":
+            width, height = 1280, 720
+        else:  # 480p default
+            width, height = 640, 480
+            
+        print(f"[INFO] Mencoba dengan pengaturan {width}x{height} @ {fps} FPS, format MJPEG")
+            
         # Coba setiap kemungkinan perangkat kamera
         for device in CAMERA_DEVICES:
             print(f"[INFO] Mencoba membuka kamera: {device}")
@@ -186,6 +203,64 @@ def initialize_camera():
                 cap = cv2.VideoCapture(device)
                 if cap.isOpened():
                     print(f"[INFO] Berhasil membuka kamera: {device}")
+                    
+                    # Atur properti kamera untuk stabilitas
+                    # Atur format ke MJPEG
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+                    
+                    # Atur resolusi
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                    
+                    # Atur FPS
+                    cap.set(cv2.CAP_PROP_FPS, fps)
+                    
+                    # Coba membaca frame pertama untuk verifikasi kamera bekerja
+                    ret, test_frame = cap.read()
+                    if not ret or test_frame is None or test_frame.size == 0:
+                        print(f"[INFO] Kamera {device} terbuka tetapi tidak dapat membaca frame. Mencoba dengan pengaturan alternatif...")
+                        
+                        # Coba resolusi alternatif jika menggunakan resolusi 720p
+                        if resolution == "720p":
+                            print("[INFO] Mencoba beralih ke 480p...")
+                            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                            ret, test_frame = cap.read()
+                            if not ret or test_frame is None:
+                                cap.release()
+                                continue
+                        else:
+                            # Jika sudah 480p, coba resolusi 720p
+                            print("[INFO] Mencoba beralih ke 720p...")
+                            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                            ret, test_frame = cap.read()
+                            if not ret or test_frame is None:
+                                cap.release()
+                                continue
+                    
+                    # Menampilkan informasi resolusi kamera yang sebenarnya
+                    height, width = test_frame.shape[:2]
+                    print(f"[INFO] Resolusi kamera aktual: {width}x{height}")
+                    
+                    # Baca frame kedua untuk verifikasi
+                    ret, test_frame = cap.read()
+                    if not ret:
+                        print(f"[INFO] Kamera {device} tidak dapat membaca frame kedua. Mencoba kamera lain...")
+                        cap.release()
+                        continue
+                        
+                    print(f"[INFO] Kamera {device} siap digunakan")
+                    
+                    # Tambahkan delay untuk stabilisasi kamera
+                    time.sleep(0.5)
+                    
+                    # Tampilkan informasi properti kamera
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    format_code = int(cap.get(cv2.CAP_PROP_FOURCC))
+                    format_str = chr(format_code & 0xFF) + chr((format_code >> 8) & 0xFF) + chr((format_code >> 16) & 0xFF) + chr((format_code >> 24) & 0xFF)
+                    print(f"[INFO] Properti kamera: {width}x{height}, {fps} FPS, Format: {format_str}")
+                    
                     return cap
                 else:
                     print(f"[INFO] Gagal membuka kamera: {device}")
@@ -198,64 +273,128 @@ def initialize_camera():
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             raise ValueError("Tidak dapat membuka kamera manapun")
+            
+        # Atur properti kamera default
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        cap.set(cv2.CAP_PROP_FPS, fps)
+        
+        # Verifikasi kamera default
+        ret, test_frame = cap.read()
+        if not ret or test_frame is None:
+            # Coba pengaturan alternatif
+            if resolution == "720p":
+                print("[INFO] Mencoba kamera default dengan 480p...")
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            else:
+                print("[INFO] Mencoba kamera default dengan 720p...")
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                
+            ret, test_frame = cap.read()
+            if not ret or test_frame is None:
+                raise ValueError("Kamera default tidak dapat membaca frame")
+        
+        # Menampilkan informasi resolusi kamera default
+        height, width = test_frame.shape[:2]
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        format_code = int(cap.get(cv2.CAP_PROP_FOURCC))
+        format_str = chr(format_code & 0xFF) + chr((format_code >> 8) & 0xFF) + chr((format_code >> 16) & 0xFF) + chr((format_code >> 24) & 0xFF)
+        print(f"[INFO] Properti kamera default: {width}x{height}, {fps} FPS, Format: {format_str}")
+            
+        print("[INFO] Menggunakan kamera default")
         return cap
     except Exception as e:
-        print('[!] Gagal inisialisasi kamera:', e)
+        print(f"[!] Gagal inisialisasi kamera: {e}")
         return None
 
-def capture_face():
-    """Mengambil gambar wajah dan menyimpan encoding-nya"""
-    cap = initialize_camera()
+def capture_face(resolution="480p", fps=15):
+    """
+    Mengambil gambar wajah dari kamera
+    
+    Args:
+        resolution (str): Resolusi kamera yang digunakan
+        fps (int): Frame rate yang digunakan
+        
+    Returns:
+        tuple: (gambar_wajah, bounding_box) jika berhasil, (None, None) jika gagal
+    """
+    # Inisialisasi kamera dengan pengaturan yang dioptimalkan
+    cap = initialize_camera(resolution=resolution, fps=fps)
     if not cap:
-        return None
+        print("[!] Gagal inisialisasi kamera.")
+        display_lcd("Kamera Error", "Coba lagi")
+        return None, None
     
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    print("[+] Kamera siap. Posisikan wajah di depan kamera...")
+    display_lcd("Posisikan", "wajah Anda")
     
-    print("[INFO] Posisikan wajah Anda di depan kamera...")
+    face_img = None
+    bbox = None
+    start_time = time.time()
+    timeout = 15  # Batas waktu 15 detik
     
-    # Tunggu sebentar agar kamera dapat fokus
-    time.sleep(1)
-    
-    face_encoding = None
-    countdown = 3
-    
-    while countdown > 0:
-        print(f"Mengambil gambar dalam {countdown}...")
-        time.sleep(1)
-        countdown -= 1
-    
-    # Ambil beberapa frame untuk memastikan kualitas gambar
-    for _ in range(10):
+    while time.time() - start_time < timeout:
+        # Baca frame dari kamera
         ret, frame = cap.read()
         if not ret:
+            print("[!] Gagal membaca frame dari kamera.")
+            continue
+        
+        try:
+            # Verifikasi frame valid
+            if frame is None or frame.size == 0:
+                print("[!] Frame tidak valid, melewati...")
+                continue
+                
+            # Deteksi wajah dengan MTCNN
+            face_img, bbox = detect_face_mtcnn(frame)
+            
+            # Jika wajah terdeteksi
+            if bbox is not None:
+                # Gambar kotak di sekitar wajah
+                frame_with_box = draw_face_box(frame, bbox)
+                
+                # Tampilkan frame
+                cv2.putText(frame_with_box, "Wajah terdeteksi!", (10, 30), 
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame_with_box, "Tekan 'SPASI' untuk mengambil gambar", 
+                          (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                cv2.imshow("Pengambilan Wajah", frame_with_box)
+                
+                key = cv2.waitKey(1)
+                if key == 32:  # Spasi
+                    print("[+] Gambar wajah diambil.")
+                    break
+            else:
+                # Jika tidak ada wajah, tampilkan frame biasa
+                cv2.putText(frame, "Tidak ada wajah terdeteksi", (10, 30), 
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.putText(frame, "Posisikan wajah Anda di depan kamera", 
+                          (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                cv2.imshow("Pengambilan Wajah", frame)
+                
+                key = cv2.waitKey(1)
+                if key == 27:  # ESC
+                    print("[!] Pengguna membatalkan pengambilan wajah.")
+                    break
+        except Exception as e:
+            print(f"[!] Error saat mendeteksi wajah: {e}")
             continue
     
-    # Ambil gambar terakhir untuk diproses
-    ret, frame = cap.read()
-    if ret:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-        
-        if len(faces) > 0:
-            # Ambil wajah terbesar yang terdeteksi
-            (x, y, w, h) = max(faces, key=lambda item: item[2] * item[3])
-            face_img = frame[y:y+h, x:x+w]
-            
-            # Simpan gambar wajah (opsional)
-            os.makedirs('faces', exist_ok=True)
-            timestamp = int(time.time())
-            face_path = f'faces/face_{timestamp}.jpg'
-            cv2.imwrite(face_path, face_img)
-            
-            # Buat encoding sederhana (dalam kasus nyata, gunakan library face_recognition)
-            # Di sini kita hanya menyimpan path gambar sebagai placeholder
-            face_encoding = face_path
-            print("[+] Wajah berhasil diambil!")
-        else:
-            print("[!] Tidak ada wajah terdeteksi")
-    
+    # Bersihkan resources
     cap.release()
-    return face_encoding
+    cv2.destroyAllWindows()
+    
+    # Cek apakah wajah berhasil diambil
+    if face_img is None or bbox is None:
+        print("[!] Gagal mengambil gambar wajah.")
+        display_lcd("Gagal", "mengambil wajah")
+        return None, None
+    
+    print("[+] Gambar wajah berhasil diambil.")
+    return face_img, bbox
 
 def capture_face_arcface(username):
     """
@@ -552,38 +691,34 @@ def import_face_embedding(embedding_path, username=None):
         print(f"[!] Gagal mengimpor embedding wajah: {e}")
         return None
 
-def capture_unknown_face():
+def capture_unknown_face(resolution="480p", fps=15):
     """
-    Menangkap gambar wajah tidak dikenal dan menyimpannya
+    Mengambil gambar wajah tidak dikenal dan menyimpannya
     
+    Args:
+        resolution (str): Resolusi kamera yang digunakan
+        fps (int): Frame rate yang digunakan
+        
     Returns:
-        str: Path ke file gambar yang disimpan, atau None jika gagal
+        str: Path ke gambar yang disimpan jika berhasil, None jika gagal
     """
-    cap = initialize_camera()
+    # Inisialisasi kamera
+    cap = initialize_camera(resolution=resolution, fps=fps)
     if not cap:
+        print("[!] Gagal inisialisasi kamera.")
         return None
     
-    print("[INFO] Mencoba menangkap wajah tidak dikenal...")
+    print("[+] Mengambil gambar wajah yang tidak dikenal...")
+    display_lcd("Memotret", "Wajah asing")
     
-    # Buat direktori untuk gambar tidak dikenal
-    unknown_dir = 'unknown_faces'
-    os.makedirs(unknown_dir, exist_ok=True)
+    # Buat folder untuk menyimpan gambar jika belum ada
+    os.makedirs("unknown_faces", exist_ok=True)
     
-    # Tunggu sebentar agar kamera dapat fokus
-    time.sleep(1)
-    
-    # Ambil beberapa frame untuk memastikan kualitas gambar
-    for _ in range(5):
-        ret, frame = cap.read()
-        if not ret:
-            cap.release()
-            return None
-    
-    # Ambil satu frame untuk diproses
+    # Ambil satu frame
     ret, frame = cap.read()
-    cap.release()
-    
     if not ret:
+        print("[!] Gagal membaca frame dari kamera.")
+        cap.release()
         return None
     
     # Cek apakah ada wajah menggunakan MTCNN jika tersedia
@@ -596,7 +731,8 @@ def capture_unknown_face():
             
             # Tambahkan kotak di sekitar wajah
             frame = draw_face_box(frame, bbox)
-        except:
+        except Exception as e:
+            print(f"[!] Error dalam deteksi wajah: {e}")
             # Jika gagal menggunakan MTCNN, gunakan Haar Cascade
             face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -631,19 +767,21 @@ def capture_unknown_face():
     cv2.putText(frame, timestamp, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
     
     # Simpan gambar
-    image_path = os.path.join(unknown_dir, f"unknown_{timestamp}.jpg")
+    image_path = os.path.join("unknown_faces", f"unknown_{timestamp}.jpg")
     cv2.imwrite(image_path, frame)
-    print(f"[+] Gambar wajah tidak dikenal disimpan: {image_path}")
     
-    # Simpan ke database
+    # Tambahkan gambar ke database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO unknown_faces (image_path, notes) VALUES (?, ?)",
-        (image_path, "Sidik jari tidak dikenali")
-    )
+    cursor.execute("INSERT INTO unknown_faces (image_path, notes) VALUES (?, ?)", 
+                (image_path, "Wajah tidak dikenal terdeteksi"))
     conn.commit()
     conn.close()
+    
+    print(f"[+] Gambar wajah tidak dikenal disimpan di: {image_path}")
+    
+    # Bersihkan resources
+    cap.release()
     
     return image_path
 
@@ -847,190 +985,343 @@ def scan_fingerprint():
         display_lcd("Sensor Error", "Coba lagi")
         return None
 
-def verify_identity():
-    """Verifikasi identitas pengguna dengan sidik jari dan wajah"""
-    print("[STEP 1] Verifikasi Sidik Jari")
-    user_id = scan_fingerprint()
+def verify_identity(fingerprint_id=None, face_check=True, threshold=0.55, resolution="480p", fps=15):
+    """
+    Memverifikasi identitas menggunakan sidik jari dan/atau wajah
     
-    if user_id is None:
-        return False
-    
-    print("\n[STEP 2] Verifikasi Wajah")
-    display_lcd("Scan Wajah", "Lihat ke kamera")
-    
-    # Ambil data wajah dari database
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name, face_encoding, face_embedding_path FROM users WHERE id = ?", (user_id,))
-    user_data = cursor.fetchone()
-    conn.close()
-    
-    if not user_data:
-        print("[!] Data pengguna tidak ditemukan")
-        display_lcd("Data Error", "Kontak admin")
-        return False
-    
-    name, face_encoding, face_embedding_path = user_data
-    
-    # Jika menggunakan embedding ArcFace
-    if face_embedding_path and face_embedding_path == EMBEDDINGS_PATH and ARCFACE_AVAILABLE:
-        print(f"[INFO] Menggunakan ArcFace untuk verifikasi wajah")
+    Args:
+        fingerprint_id (int): ID sidik jari yang akan diverifikasi (opsional)
+        face_check (bool): Apakah akan memeriksa wajah
+        threshold (float): Threshold kecocokan wajah (0-1)
+        resolution (str): Resolusi kamera yang digunakan
+        fps (int): Frame rate yang digunakan
         
-        # Buka kamera
-        cap = cv2.VideoCapture(CAMERA_ID)
+    Returns:
+        tuple: (status, user_data) jika berhasil, (False, None) jika gagal
+    """
+    print(f"\n[+] Memverifikasi identitas {'dengan wajah' if face_check else 'tanpa wajah'}...")
+    display_lcd("Verifikasi", "identitas...")
+    
+    if fingerprint_id is None:
+        # Jika tidak ada fingerprint_id yang diberikan, verifikasi dengan wajah saja
+        if not face_check:
+            print("[!] Tidak ada metode verifikasi yang dipilih")
+            display_lcd("Error", "Pilih metode")
+            return False, None
+        
+        # Verifikasi dengan wajah
+        if not ARCFACE_AVAILABLE:
+            print("[!] Modul pengenalan wajah tidak tersedia")
+            display_lcd("Error", "Modul wajah")
+            return False, None
+        
+        # Inisialisasi kamera
+        cap = initialize_camera(resolution=resolution, fps=fps)
         if not cap:
-            print("[!] Gagal membuka kamera")
-            display_lcd("Kamera Error", "Coba lagi")
-            return False
+            print("[!] Gagal inisialisasi kamera")
+            display_lcd("Error", "Kamera")
+            return False, None
         
-        print("[INFO] Posisikan wajah Anda di depan kamera untuk verifikasi...")
-        verified = False
-        start_time = time.time()
-        timeout = 15  # Timeout setelah 15 detik
-        
-        # Muat embeddings
-        embeddings_dict = load_embeddings(EMBEDDINGS_PATH)
-        if name not in embeddings_dict:
-            print(f"[!] Nama {name} tidak ditemukan dalam database ArcFace")
-            display_lcd("Data Error", "Kontak admin")
+        # Muat database embedding wajah
+        try:
+            embeddings_dict = load_embeddings(EMBEDDINGS_PATH)
+            if not embeddings_dict:
+                print("[!] Database wajah kosong")
+                display_lcd("Database", "Wajah kosong")
+                cap.release()
+                return False, None
+        except Exception as e:
+            print(f"[!] Gagal memuat embeddings: {e}")
+            display_lcd("Error", "Data wajah")
             cap.release()
-            cv2.destroyAllWindows()
-            return False
+            return False, None
         
-        stored_embedding = embeddings_dict[name]
+        print("[+] Database wajah dimuat. Silakan lihat ke kamera...")
+        display_lcd("Lihat ke", "kamera")
         
-        while time.time() - start_time < timeout and not verified:
-            ret, frame = cap.read()
-            if not ret:
+        # Setup untuk pengambilan wajah
+        face_found = False
+        best_match_name = None
+        best_match_score = 0
+        face_embedding = None
+        start_time = time.time()
+        timeout = 15  # 15 detik timeout
+        
+        print("[+] Mencari wajah dalam frame...")
+        
+        while time.time() - start_time < timeout and not face_found:
+            try:
+                # Ambil frame dari kamera
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    print("[!] Gagal membaca frame dari kamera")
+                    continue
+                
+                # Deteksi wajah
+                face_img, bbox = detect_face_mtcnn(frame)
+                
+                if face_img is not None and bbox is not None:
+                    # Tampilkan kotak di sekitar wajah
+                    frame = draw_face_box(frame, bbox)
+                    
+                    # Proses wajah
+                    face_tensor = preprocess_face(face_img)
+                    if face_tensor is not None:
+                        # Cek orientasi wajah
+                        pitch, yaw, roll = calculate_face_orientation(bbox, frame.shape)
+                        frontal = is_face_frontal(pitch, yaw, roll)
+                        
+                        # Tampilkan informasi orientasi wajah pada frame
+                        cv2.putText(frame, f"Pitch: {pitch:.1f}", (10, 60), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                        cv2.putText(frame, f"Yaw: {yaw:.1f}", (10, 80), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                        cv2.putText(frame, f"Roll: {roll:.1f}", (10, 100), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                        cv2.putText(frame, f"Frontal: {'Ya' if frontal else 'Tidak'}", (10, 120), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0) if frontal else (0, 0, 255), 1)
+                        
+                        # Hanya lakukan pengenalan jika wajah frontal
+                        if frontal:
+                            # Ekstrak embedding
+                            face_embedding = extract_embedding(face_tensor)
+                            
+                            # Bandingkan dengan database
+                            for name, saved_embeddings in embeddings_dict.items():
+                                # Handle kedua format embedding (list atau array tunggal)
+                                if isinstance(saved_embeddings, list):
+                                    # Format list (multiple embeddings)
+                                    for emb in saved_embeddings:
+                                        similarity = compute_similarity(face_embedding, emb)
+                                        if similarity > best_match_score:
+                                            best_match_score = similarity
+                                            best_match_name = name
+                                else:
+                                    # Format array tunggal (satu embedding)
+                                    similarity = compute_similarity(face_embedding, saved_embeddings)
+                                    if similarity > best_match_score:
+                                        best_match_score = similarity
+                                        best_match_name = name
+                            
+                            # Tampilkan skor kecocokan
+                            cv2.putText(frame, f"Kecocokan: {best_match_score:.2f}", (10, 140), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                            
+                            # Periksa apakah kecocokan cukup tinggi
+                            if best_match_score >= threshold:
+                                cv2.putText(frame, f"Dikenali: {best_match_name} ({best_match_score:.2f})", 
+                                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                face_found = True
+                            else:
+                                cv2.putText(frame, f"Tidak dikenali ({best_match_score:.2f})", 
+                                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                
+                # Tampilkan waktu tersisa
+                remaining = int(timeout - (time.time() - start_time))
+                cv2.putText(frame, f"Waktu: {remaining}s", (10, frame.shape[0] - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                
+                # Tampilkan threshold
+                cv2.putText(frame, f"Threshold: {threshold}", (frame.shape[1] - 150, frame.shape[0] - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                
+                # Tampilkan frame
+                cv2.imshow("Verifikasi Wajah", frame)
+                if cv2.waitKey(1) == 27:  # ESC
+                    break
+            except Exception as e:
+                print(f"[!] Error saat mendeteksi wajah: {e}")
                 continue
-                
-            # Deteksi wajah
-            face_img, bbox = detect_face_mtcnn(frame)
-            
-            if bbox is not None:
-                # Tampilkan kotak di sekitar wajah
-                frame = draw_face_box(frame, bbox)
-                
-                # Proses wajah dan ekstrak embedding
-                face_tensor = preprocess_face(face_img)
-                if face_tensor is not None:
-                    # Ekstrak embedding
-                    embedding = extract_embedding(face_tensor)
-                    
-                    # Hitung similarity
-                    from arcface_utils import compute_similarity
-                    similarity = compute_similarity(embedding, stored_embedding)
-                    
-                    # Tampilkan skor kecocokan
-                    cv2.putText(frame, f"Match: {similarity:.2f}", (10, 30), 
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    
-                    # Verifikasi jika similarity cukup tinggi
-                    threshold = 0.6  # Threshold untuk verifikasi
-                    if similarity >= threshold:
-                        verified = True
-                        cv2.putText(frame, "TERVERIFIKASI!", (frame.shape[1] - 200, 30), 
-                                  cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            
-            # Tampilkan waktu tersisa
-            remaining = int(timeout - (time.time() - start_time))
-            cv2.putText(frame, f"Waktu: {remaining}s", (10, frame.shape[0] - 10), 
-                      cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-            
-            cv2.imshow("Verifikasi Wajah", frame)
-            if cv2.waitKey(1) == 27:  # ESC untuk keluar
-                break
         
+        # Bersihkan resource
         cap.release()
         cv2.destroyAllWindows()
         
-        if verified:
-            print(f"[+] Wajah terverifikasi untuk pengguna: {name}")
-            print(f"[+] Verifikasi identitas berhasil!")
-            display_lcd(f"Selamat Datang", f"{name}")
-            # Buka selenoid
-            unlock_door()
-            return True
+        # Jika wajah ditemukan dan dikenali
+        if face_found:
+            # Cari pengguna di database berdasarkan nama
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE name = ?", (best_match_name,))
+            user_data = cursor.fetchone()
+            conn.close()
+            
+            if user_data:
+                print(f"[+] Wajah dikenali sebagai {best_match_name} (skor: {best_match_score:.2f})")
+                display_lcd("Wajah dikenali", best_match_name)
+                return True, user_data
+            else:
+                print(f"[!] Wajah dikenali sebagai {best_match_name} tapi tidak ada dalam database")
+                display_lcd("Error", "Data tidak cocok")
+                return False, None
         else:
-            print(f"[!] Gagal memverifikasi wajah dalam waktu {timeout} detik")
-            display_lcd("Akses Ditolak", "Wajah tidak cocok")
-            return False
+            print("[!] Wajah tidak dikenali atau timeout")
+            display_lcd("Wajah", "Tidak dikenali")
+            # Jika wajah tidak dikenali, simpan sebagai wajah tidak dikenal
+            capture_unknown_face(resolution=resolution, fps=fps)
+            return False, None
     
-    # Jika menggunakan embedding dari file lain
-    elif face_embedding_path:
-        print(f"[INFO] Menggunakan embedding wajah yang tersimpan: {face_embedding_path}")
-        
-        # Baca embedding dari file
-        if face_embedding_path.endswith('.pkl'):
-            try:
-                with open(face_embedding_path, 'rb') as f:
-                    embedding_data = pickle.load(f)
-                print(f"[INFO] Embedding data berhasil dimuat dari file pickle")
-                
-                # Di sini Anda bisa menambahkan logika untuk verifikasi wajah
-                # menggunakan embedding_data, tapi untuk contoh ini kita anggap berhasil
-                
-            except Exception as e:
-                print(f"[!] Gagal memuat embedding: {e}")
-                display_lcd("Data Error", "Kontak admin")
-                return False
-        
-        # Di kasus nyata, kita akan memproses dengan model face recognition
-        # dan membandingkan dengan embedding yang tersimpan
-        # Untuk contoh ini, kita anggap berhasil
-        print(f"[+] Wajah terverifikasi untuk pengguna: {name}")
-        print(f"[+] Verifikasi identitas berhasil!")
-        display_lcd(f"Selamat Datang", f"{name}")
-        # Buka selenoid
-        unlock_door()
-        return True
-    
-    # Jika menggunakan gambar wajah yang diambil sebelumnya
-    elif face_encoding:
-        # Verifikasi wajah dengan kamera
-        cap = initialize_camera()
-        if not cap:
-            display_lcd("Kamera Error", "Coba lagi")
-            return False
-        
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        
-        print("[INFO] Posisikan wajah Anda di depan kamera untuk verifikasi...")
-        time.sleep(2)
-        
-        # Ambil beberapa frame untuk memastikan kualitas gambar
-        for _ in range(10):
-            ret, frame = cap.read()
-        
-        ret, frame = cap.read()
-        cap.release()
-        
-        if not ret:
-            print("[!] Gagal mengambil gambar dari kamera")
-            display_lcd("Kamera Error", "Coba lagi")
-            return False
-        
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-        
-        if len(faces) == 0:
-            print("[!] Tidak ada wajah terdeteksi")
-            display_lcd("Wajah Error", "Tidak terdeteksi")
-            return False
-        
-        # Di kasus nyata, gunakan library face_recognition untuk membandingkan wajah
-        # Untuk contoh ini, kita anggap berhasil jika wajah terdeteksi
-        print(f"[+] Wajah terverifikasi untuk pengguna: {name}")
-        print(f"[+] Verifikasi identitas berhasil!")
-        display_lcd(f"Selamat Datang", f"{name}")
-        # Buka selenoid
-        unlock_door()
-        return True
-    
+    # Jika ada fingerprint_id
     else:
-        print("[!] Tidak ada data wajah tersimpan untuk pengguna ini")
-        display_lcd("Data Error", "Kontak admin")
-        return False
+        # Cari pengguna di database
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, fingerprint_id, face_embedding_path FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if not user_data:
+            print(f"[!] Sidik jari dengan ID {fingerprint_id} tidak terdaftar dalam database")
+            display_lcd("Sidik jari", "Tidak terdaftar")
+            return False, None
+        
+        user_id, name, _, face_embedding_path = user_data
+        
+        print(f"[+] Sidik jari dikenali sebagai {name}")
+        display_lcd("Sidik jari OK", name)
+        
+        # Jika tidak perlu cek wajah, langsung return True
+        if not face_check:
+            return True, user_data
+        
+        # Jika perlu cek wajah
+        print("[+] Memverifikasi wajah sebagai langkah kedua...")
+        display_lcd("Verifikasi", "wajah...")
+        
+        # Cek apakah ada embedding wajah tersimpan
+        if face_embedding_path and face_embedding_path == EMBEDDINGS_PATH and ARCFACE_AVAILABLE:
+            # Lakukan verifikasi wajah
+            cap = initialize_camera(resolution=resolution, fps=fps)
+            if not cap:
+                print("[!] Gagal inisialisasi kamera")
+                display_lcd("Error", "Kamera")
+                return False, None
+            
+            # Muat database embedding
+            try:
+                embeddings_dict = load_embeddings(EMBEDDINGS_PATH)
+                if not embeddings_dict or name not in embeddings_dict:
+                    print(f"[!] Data wajah untuk {name} tidak ditemukan")
+                    display_lcd("Data Wajah", f"Tidak ada: {name}")
+                    cap.release()
+                    return False, None
+            except Exception as e:
+                print(f"[!] Gagal memuat embeddings: {e}")
+                display_lcd("Error", "Data wajah")
+                cap.release()
+                return False, None
+            
+            # Ambil embedding tersimpan
+            saved_embeddings = embeddings_dict[name]
+            
+            print("[+] Silakan lihat ke kamera untuk verifikasi wajah...")
+            display_lcd("Verifikasi", "Lihat ke kamera")
+            
+            # Setup untuk pengambilan wajah
+            face_verified = False
+            start_time = time.time()
+            timeout = 15  # 15 detik timeout
+            
+            while time.time() - start_time < timeout and not face_verified:
+                try:
+                    # Ambil frame dari kamera
+                    ret, frame = cap.read()
+                    if not ret or frame is None:
+                        print("[!] Gagal membaca frame dari kamera")
+                        continue
+                    
+                    # Deteksi wajah
+                    face_img, bbox = detect_face_mtcnn(frame)
+                    
+                    if face_img is not None and bbox is not None:
+                        # Tampilkan kotak di sekitar wajah
+                        frame = draw_face_box(frame, bbox)
+                        
+                        # Proses wajah
+                        face_tensor = preprocess_face(face_img)
+                        if face_tensor is not None:
+                            # Cek orientasi wajah
+                            pitch, yaw, roll = calculate_face_orientation(bbox, frame.shape)
+                            frontal = is_face_frontal(pitch, yaw, roll)
+                            
+                            # Tampilkan informasi orientasi wajah pada frame
+                            cv2.putText(frame, f"Pitch: {pitch:.1f}", (10, 60), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                            cv2.putText(frame, f"Yaw: {yaw:.1f}", (10, 80), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                            cv2.putText(frame, f"Roll: {roll:.1f}", (10, 100), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                            cv2.putText(frame, f"Frontal: {'Ya' if frontal else 'Tidak'}", (10, 120), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0) if frontal else (0, 0, 255), 1)
+                            
+                            # Hanya lakukan pengenalan jika wajah frontal
+                            if frontal:
+                                # Ekstrak embedding
+                                face_embedding = extract_embedding(face_tensor)
+                                
+                                # Bandingkan dengan embedding tersimpan
+                                if isinstance(saved_embeddings, list):
+                                    # Format list (multiple embeddings)
+                                    best_similarity = 0
+                                    for emb in saved_embeddings:
+                                        similarity = compute_similarity(face_embedding, emb)
+                                        best_similarity = max(best_similarity, similarity)
+                                else:
+                                    # Format array tunggal (satu embedding)
+                                    best_similarity = compute_similarity(face_embedding, saved_embeddings)
+                                
+                                # Tampilkan skor kecocokan
+                                cv2.putText(frame, f"Kecocokan: {best_similarity:.2f}", (10, 140), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                                
+                                # Verifikasi apakah wajah cocok dengan sidik jari
+                                if best_similarity >= threshold:
+                                    cv2.putText(frame, f"Verifikasi Berhasil: {name} ({best_similarity:.2f})", 
+                                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                    face_verified = True
+                                else:
+                                    cv2.putText(frame, f"Verifikasi Gagal ({best_similarity:.2f})", 
+                                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    
+                    # Tampilkan waktu tersisa
+                    remaining = int(timeout - (time.time() - start_time))
+                    cv2.putText(frame, f"Waktu: {remaining}s", (10, frame.shape[0] - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    
+                    # Tampilkan threshold
+                    cv2.putText(frame, f"Threshold: {threshold}", (frame.shape[1] - 150, frame.shape[0] - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                    
+                    # Tampilkan nama yang diverifikasi
+                    cv2.putText(frame, f"Verifikasi: {name}", (frame.shape[1] - 200, 30), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                    
+                    # Tampilkan frame
+                    cv2.imshow("Verifikasi Wajah", frame)
+                    if cv2.waitKey(1) == 27:  # ESC
+                        break
+                except Exception as e:
+                    print(f"[!] Error saat mendeteksi wajah: {e}")
+                    continue
+            
+            # Bersihkan resource
+            cap.release()
+            cv2.destroyAllWindows()
+            
+            if face_verified:
+                print(f"[+] Verifikasi wajah berhasil untuk {name}")
+                display_lcd("Verifikasi OK", name)
+                return True, user_data
+            else:
+                print(f"[!] Verifikasi wajah gagal untuk {name}")
+                display_lcd("Verifikasi", "Gagal")
+                # Simpan wajah yang tidak cocok
+                capture_unknown_face(resolution=resolution, fps=fps)
+                return False, None
+        else:
+            print("[!] Tidak ada data wajah tersimpan untuk verifikasi")
+            display_lcd("Tidak ada", "Data wajah")
+            return True, user_data  # Tetap return True karena sidik jari cocok
 
 def display_embedding_file(file_path):
     """

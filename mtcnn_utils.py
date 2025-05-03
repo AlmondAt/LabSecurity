@@ -24,29 +24,56 @@ def detect_face_mtcnn(frame):
     Returns:
         tuple: (cropped_face, bounding_box)
     """
-    # Konversi ke RGB jika frame dalam BGR (OpenCV)
-    if frame.shape[2] == 3 and frame is not None:
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    else:
-        rgb_frame = frame
-        
-    # Deteksi wajah dengan MTCNN
-    boxes, probs = mtcnn.detect(rgb_frame)
-    
-    if boxes is None:
+    # Validasi input frame
+    if frame is None or not isinstance(frame, np.ndarray):
+        print("[!] Frame tidak valid (None atau bukan numpy array)")
         return None, None
     
-    # Ambil wajah dengan probabilitas tertinggi
-    box = boxes[0]
-    x1, y1, x2, y2 = [int(coord) for coord in box]
+    # Cek apakah frame memiliki dimensi yang valid
+    if len(frame.shape) < 3 or frame.shape[0] <= 0 or frame.shape[1] <= 0:
+        print(f"[!] Dimensi frame tidak valid: {frame.shape}")
+        return None, None
     
-    # Crop wajah
-    cropped_face = frame[y1:y2, x1:x2]
+    try:
+        # Konversi ke RGB jika frame dalam BGR (OpenCV)
+        if frame.shape[2] == 3:
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        else:
+            rgb_frame = frame
+            
+        # Deteksi wajah dengan MTCNN
+        boxes, probs = mtcnn.detect(rgb_frame)
+        
+        if boxes is None or len(boxes) == 0:
+            return None, None
+        
+        # Ambil wajah dengan probabilitas tertinggi
+        box = boxes[0]
+        x1, y1, x2, y2 = [int(coord) for coord in box]
+        
+        # Validasi bounding box (pastikan koordinat valid)
+        height, width = frame.shape[:2]
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(width, x2)
+        y2 = min(height, y2)
+        
+        # Cek apakah box valid (lebar dan tinggi > 0)
+        if x2 <= x1 or y2 <= y1:
+            print("[!] Bounding box tidak valid")
+            return None, None
+        
+        # Crop wajah
+        cropped_face = frame[y1:y2, x1:x2]
+        
+        # Format bounding box [x1, y1, x2, y2]
+        bbox = [x1, y1, x2, y2]
+        
+        return cropped_face, bbox
     
-    # Format bounding box [x1, y1, x2, y2]
-    bbox = [x1, y1, x2, y2]
-    
-    return cropped_face, bbox
+    except Exception as e:
+        print(f"[!] Error dalam deteksi wajah MTCNN: {e}")
+        return None, None
 
 def draw_face_box(frame, bbox, name=None, similarity=None):
     """
