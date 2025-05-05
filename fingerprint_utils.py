@@ -958,7 +958,9 @@ def scan_fingerprint():
             display_lcd("Akses Ditolak", "Sidik jari asing")
             
             # Tangkap wajah tidak dikenal jika sidik jari tidak dikenali
-            capture_unknown_face()
+            # Pastikan initialization parameter lengkap
+            image_path = capture_unknown_face(resolution="480p", fps=15)
+            print(f"[+] Gambar wajah tidak dikenal disimpan: {image_path}")
             
             return None
         else:
@@ -1506,16 +1508,34 @@ def run_access_control_system():
         display_lcd("Sistem Siap", "Tempelkan jari")
         
         while True:
-            # Menunggu verifikasi identitas
-            # Tambahkan parameter explicit untuk menghindari error numpy array
-            verification_result, _ = verify_identity()
-            if verification_result:
-                print("[+] Akses diberikan")
-                # Buka pintu/selenoid sudah ditangani di dalam verify_identity()
-                time.sleep(2)  # Tunggu sebentar sebelum siap menerima scan berikutnya
+            # Pindai sidik jari terlebih dahulu
+            fingerprint_id = None
+            try:
+                fingerprint_id = scan_fingerprint()
+            except Exception as e:
+                print(f"[!] Error saat memindai sidik jari: {e}")
+                time.sleep(2)
+                continue
+                
+            # Jika sidik jari terdeteksi, lakukan verifikasi wajah
+            if fingerprint_id is not None:
+                try:
+                    verification_result, user_data = verify_identity(fingerprint_id=fingerprint_id)
+                    if verification_result:
+                        print("[+] Akses diberikan")
+                        # Buka pintu
+                        unlock_door()
+                        time.sleep(2)
+                    else:
+                        print("[!] Akses ditolak")
+                        time.sleep(2)
+                except Exception as e:
+                    print(f"[!] Error saat melakukan verifikasi: {e}")
+                    display_lcd("Error Verifikasi", "Coba lagi")
+                    time.sleep(2)
             else:
-                print("[!] Akses ditolak")
-                time.sleep(2)  # Tunggu sebentar sebelum siap menerima scan berikutnya
+                # Jika sidik jari tidak dikenali, tunggu sebentar sebelum scan berikutnya
+                time.sleep(2)
             
             # Reset LCD untuk scan berikutnya
             display_lcd("Sistem Siap", "Tempelkan jari")
