@@ -1220,7 +1220,27 @@ def verify_identity(fingerprint_id=None, face_check=True, threshold=0.55, resolu
             # Setup untuk pengambilan wajah
             face_verified = False
             start_time = time.time()
-            timeout = 15  # 15 detik timeout
+            timeout = 15
+            
+            # Perbaikan cek Numpy array
+            # Cek apakah saved_embeddings ada dan valid
+            if isinstance(saved_embeddings, list):
+                if len(saved_embeddings) == 0:
+                    print(f"[!] Data wajah untuk {name} kosong")
+                    display_lcd("Data Wajah", "Kosong")
+                    cap.release()
+                    return False, None
+            elif isinstance(saved_embeddings, np.ndarray):
+                if saved_embeddings.size == 0:
+                    print(f"[!] Data wajah untuk {name} kosong")
+                    display_lcd("Data Wajah", "Kosong")
+                    cap.release()
+                    return False, None
+            else:
+                print(f"[!] Format data wajah tidak valid")
+                display_lcd("Error", "Format data")
+                cap.release()
+                return False, None
             
             while time.time() - start_time < timeout and not face_verified:
                 try:
@@ -1487,7 +1507,9 @@ def run_access_control_system():
         
         while True:
             # Menunggu verifikasi identitas
-            if verify_identity():
+            # Tambahkan parameter explicit untuk menghindari error numpy array
+            verification_result, _ = verify_identity()
+            if verification_result:
                 print("[+] Akses diberikan")
                 # Buka pintu/selenoid sudah ditangani di dalam verify_identity()
                 time.sleep(2)  # Tunggu sebentar sebelum siap menerima scan berikutnya
