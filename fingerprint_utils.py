@@ -987,7 +987,7 @@ def scan_fingerprint():
         display_lcd("Sensor Error", "Coba lagi")
         return None
 
-def verify_identity(fingerprint_id=None, face_check=True, threshold=0.55, resolution="480p", fps=15):
+def verify_identity(fingerprint_id=None, face_check=True, threshold=0.45, resolution="480p", fps=15):
     """
     Memverifikasi identitas menggunakan sidik jari dan/atau wajah
     
@@ -1191,7 +1191,7 @@ def verify_identity(fingerprint_id=None, face_check=True, threshold=0.55, resolu
         display_lcd("Verifikasi", "wajah...")
         
         # Cek apakah ada embedding wajah tersimpan
-        if face_embedding_path and face_embedding_path == EMBEDDINGS_PATH and ARCFACE_AVAILABLE:
+        if face_embedding_path and ARCFACE_AVAILABLE:
             # Lakukan verifikasi wajah
             cap = initialize_camera(resolution=resolution, fps=fps)
             if not cap:
@@ -1223,26 +1223,6 @@ def verify_identity(fingerprint_id=None, face_check=True, threshold=0.55, resolu
             face_verified = False
             start_time = time.time()
             timeout = 15
-            
-            # Perbaikan cek Numpy array
-            # Cek apakah saved_embeddings ada dan valid
-            if isinstance(saved_embeddings, list):
-                if len(saved_embeddings) == 0:
-                    print(f"[!] Data wajah untuk {name} kosong")
-                    display_lcd("Data Wajah", "Kosong")
-                    cap.release()
-                    return False, None
-            elif isinstance(saved_embeddings, np.ndarray):
-                if saved_embeddings.size == 0:
-                    print(f"[!] Data wajah untuk {name} kosong")
-                    display_lcd("Data Wajah", "Kosong")
-                    cap.release()
-                    return False, None
-            else:
-                print(f"[!] Format data wajah tidak valid")
-                display_lcd("Error", "Format data")
-                cap.release()
-                return False, None
             
             while time.time() - start_time < timeout and not face_verified:
                 try:
