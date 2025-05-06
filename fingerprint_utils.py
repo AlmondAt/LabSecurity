@@ -193,120 +193,63 @@ def initialize_camera(resolution="480p", fps=15):
             width, height = 1280, 720
         else:  # 480p default
             width, height = 640, 480
-            
-        print(f"[INFO] Mencoba dengan pengaturan {width}x{height} @ {fps} FPS, format MJPEG")
-            
-        # Coba setiap kemungkinan perangkat kamera
+        
+        print(f"[INFO] Mencoba inisialisasi kamera dengan resolusi {width}x{height}")
+        
+        # Pendekatan sederhana: coba setiap device kamera
         for device in CAMERA_DEVICES:
             print(f"[INFO] Mencoba membuka kamera: {device}")
             try:
                 cap = cv2.VideoCapture(device)
-                if cap.isOpened():
-                    print(f"[INFO] Berhasil membuka kamera: {device}")
-                    
-                    # Atur properti kamera untuk stabilitas
-                    # Atur format ke MJPEG
-                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-                    
-                    # Atur resolusi
-                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-                    
-                    # Atur FPS
-                    cap.set(cv2.CAP_PROP_FPS, fps)
-                    
-                    # Coba membaca frame pertama untuk verifikasi kamera bekerja
-                    ret, test_frame = cap.read()
-                    if not ret or test_frame is None or test_frame.size == 0:
-                        print(f"[INFO] Kamera {device} terbuka tetapi tidak dapat membaca frame. Mencoba dengan pengaturan alternatif...")
-                        
-                        # Coba resolusi alternatif jika menggunakan resolusi 720p
-                        if resolution == "720p":
-                            print("[INFO] Mencoba beralih ke 480p...")
-                            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                            ret, test_frame = cap.read()
-                            if not ret or test_frame is None:
-                                cap.release()
-                                continue
-                        else:
-                            # Jika sudah 480p, coba resolusi 720p
-                            print("[INFO] Mencoba beralih ke 720p...")
-                            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-                            ret, test_frame = cap.read()
-                            if not ret or test_frame is None:
-                                cap.release()
-                                continue
-                    
-                    # Menampilkan informasi resolusi kamera yang sebenarnya
-                    height, width = test_frame.shape[:2]
-                    print(f"[INFO] Resolusi kamera aktual: {width}x{height}")
-                    
-                    # Baca frame kedua untuk verifikasi
-                    ret, test_frame = cap.read()
-                    if not ret:
-                        print(f"[INFO] Kamera {device} tidak dapat membaca frame kedua. Mencoba kamera lain...")
-                        cap.release()
-                        continue
-                        
-                    print(f"[INFO] Kamera {device} siap digunakan")
-                    
-                    # Tambahkan delay untuk stabilisasi kamera
-                    time.sleep(0.5)
-                    
-                    # Tampilkan informasi properti kamera
-                    fps = cap.get(cv2.CAP_PROP_FPS)
-                    format_code = int(cap.get(cv2.CAP_PROP_FOURCC))
-                    format_str = chr(format_code & 0xFF) + chr((format_code >> 8) & 0xFF) + chr((format_code >> 16) & 0xFF) + chr((format_code >> 24) & 0xFF)
-                    print(f"[INFO] Properti kamera: {width}x{height}, {fps} FPS, Format: {format_str}")
-                    
-                    return cap
-                else:
+                if not cap.isOpened():
                     print(f"[INFO] Gagal membuka kamera: {device}")
+                    continue
+                
+                print(f"[INFO] Kamera {device} terbuka")
+                
+                # Atur properti kamera dasar saja
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                
+                # Verifikasi dengan membaca frame
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    print(f"[INFO] Kamera {device} tidak dapat membaca frame")
                     cap.release()
+                    continue
+                
+                # Jika berhasil, kembalikan objek kamera
+                print(f"[INFO] Kamera {device} berhasil diinisialisasi")
+                return cap
+                
             except Exception as e:
-                print(f"[INFO] Error saat membuka kamera {device}: {e}")
+                print(f"[INFO] Error saat inisialisasi kamera {device}: {e}")
+                if 'cap' in locals() and cap is not None:
+                    cap.release()
         
-        # Jika semua gagal, coba indeks default sebagai fallback
-        print(f"[INFO] Mencoba kamera default (indeks 0)")
+        # Jika semua device gagal, coba fallback ke default (0)
+        print("[INFO] Mencoba kamera default (indeks 0)")
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            raise ValueError("Tidak dapat membuka kamera manapun")
-            
-        # Atur properti kamera default
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            print("[INFO] Gagal membuka kamera default")
+            return None
+        
+        # Atur properti dasar
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        cap.set(cv2.CAP_PROP_FPS, fps)
         
-        # Verifikasi kamera default
-        ret, test_frame = cap.read()
-        if not ret or test_frame is None:
-            # Coba pengaturan alternatif
-            if resolution == "720p":
-                print("[INFO] Mencoba kamera default dengan 480p...")
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            else:
-                print("[INFO] Mencoba kamera default dengan 720p...")
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-                
-            ret, test_frame = cap.read()
-            if not ret or test_frame is None:
-                raise ValueError("Kamera default tidak dapat membaca frame")
+        # Verifikasi baca frame
+        ret, frame = cap.read()
+        if not ret or frame is None:
+            print("[INFO] Kamera default tidak dapat membaca frame")
+            cap.release()
+            return None
         
-        # Menampilkan informasi resolusi kamera default
-        height, width = test_frame.shape[:2]
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        format_code = int(cap.get(cv2.CAP_PROP_FOURCC))
-        format_str = chr(format_code & 0xFF) + chr((format_code >> 8) & 0xFF) + chr((format_code >> 16) & 0xFF) + chr((format_code >> 24) & 0xFF)
-        print(f"[INFO] Properti kamera default: {width}x{height}, {fps} FPS, Format: {format_str}")
-            
-        print("[INFO] Menggunakan kamera default")
+        print("[INFO] Kamera default berhasil diinisialisasi")
         return cap
+    
     except Exception as e:
-        print(f"[!] Gagal inisialisasi kamera: {e}")
+        print(f"[!] Error saat inisialisasi kamera: {e}")
         return None
 
 def capture_face(resolution="480p", fps=15):
@@ -987,7 +930,7 @@ def scan_fingerprint():
         display_lcd("Sensor Error", "Coba lagi")
         return None
 
-def verify_identity(fingerprint_id=None, face_check=True, threshold=0.45, resolution="480p", fps=15):
+def verify_identity(fingerprint_id=None, face_check=True, threshold=0.4, resolution="480p", fps=15):
     """
     Memverifikasi identitas menggunakan sidik jari dan/atau wajah
     
@@ -1004,144 +947,289 @@ def verify_identity(fingerprint_id=None, face_check=True, threshold=0.45, resolu
     print(f"\n[+] Memverifikasi identitas {'dengan wajah' if face_check else 'tanpa wajah'}...")
     display_lcd("Verifikasi", "identitas...")
     
-    if fingerprint_id is None:
-        # Jika tidak ada fingerprint_id yang diberikan, verifikasi dengan wajah saja
-        if not face_check:
-            print("[!] Tidak ada metode verifikasi yang dipilih")
-            display_lcd("Error", "Pilih metode")
-            return False, None
+    # Jika ada fingerprint_id tetapi tidak perlu cek wajah, langsung verifikasi dengan sidik jari saja
+    if fingerprint_id is not None and not face_check:
+        # Cari pengguna di database
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+        user_data = cursor.fetchone()
+        conn.close()
         
-        # Verifikasi dengan wajah
-        if not ARCFACE_AVAILABLE:
-            print("[!] Modul pengenalan wajah tidak tersedia")
-            display_lcd("Error", "Modul wajah")
+        if user_data:
+            user_id, name, _ = user_data
+            print(f"[+] Sidik jari dikenali sebagai {name}")
+            display_lcd("Sidik jari OK", name)
+            return True, user_data
+        else:
+            print(f"[!] Sidik jari dengan ID {fingerprint_id} tidak terdaftar dalam database")
+            display_lcd("Sidik jari", "Tidak terdaftar")
             return False, None
+    
+    # Verifikasi dengan wajah (dengan atau tanpa sidik jari)
+    # Pastikan ArcFace tersedia
+    if not ARCFACE_AVAILABLE:
+        print("[!] Modul pengenalan wajah tidak tersedia")
+        display_lcd("Error", "Modul wajah")
         
-        # Inisialisasi kamera
-        cap = initialize_camera(resolution=resolution, fps=fps)
-        if not cap:
-            print("[!] Gagal inisialisasi kamera")
-            display_lcd("Error", "Kamera")
-            return False, None
-        
-        # Muat database embedding wajah
-        try:
-            embeddings_dict = load_embeddings(EMBEDDINGS_PATH)
-            if not embeddings_dict:
-                print("[!] Database wajah kosong")
-                display_lcd("Database", "Wajah kosong")
-                cap.release()
+        # Jika ada fingerprint_id, verifikasi dengan sidik jari saja
+        if fingerprint_id is not None:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+            user_data = cursor.fetchone()
+            conn.close()
+            
+            if user_data:
+                print(f"[+] Sidik jari dikenali sebagai {user_data[1]} (tanpa verifikasi wajah)")
+                display_lcd("Sidik jari OK", user_data[1])
+                return True, user_data
+            else:
                 return False, None
-        except Exception as e:
-            print(f"[!] Gagal memuat embeddings: {e}")
-            display_lcd("Error", "Data wajah")
+        
+        return False, None
+    
+    # Inisialisasi kamera dengan pendekatan sederhana
+    print("[INFO] Inisialisasi kamera untuk verifikasi...")
+    cap = initialize_camera(resolution=resolution)
+    if not cap:
+        print("[!] Gagal inisialisasi kamera")
+        display_lcd("Error", "Kamera")
+        
+        # Jika ada fingerprint_id, verifikasi dengan sidik jari saja
+        if fingerprint_id is not None:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+            user_data = cursor.fetchone()
+            conn.close()
+            
+            if user_data:
+                print(f"[+] Sidik jari dikenali sebagai {user_data[1]} (tanpa verifikasi wajah)")
+                display_lcd("Sidik jari OK", user_data[1])
+                return True, user_data
+            else:
+                return False, None
+        
+        return False, None
+    
+    # Muat embeddings wajah
+    try:
+        embeddings_dict = load_embeddings(EMBEDDINGS_PATH)
+        if not embeddings_dict:
+            print("[!] Database wajah kosong")
+            display_lcd("Database", "Wajah kosong")
             cap.release()
+            
+            # Jika ada fingerprint_id, verifikasi dengan sidik jari saja
+            if fingerprint_id is not None:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+                user_data = cursor.fetchone()
+                conn.close()
+                
+                if user_data:
+                    print(f"[+] Sidik jari dikenali sebagai {user_data[1]} (tanpa verifikasi wajah)")
+                    display_lcd("Sidik jari OK", user_data[1])
+                    return True, user_data
+                else:
+                    return False, None
+            
             return False, None
+    except Exception as e:
+        print(f"[!] Gagal memuat embeddings: {e}")
+        display_lcd("Error", "Data wajah")
+        cap.release()
         
-        print("[+] Database wajah dimuat. Silakan lihat ke kamera...")
-        display_lcd("Lihat ke", "kamera")
+        # Jika ada fingerprint_id, verifikasi dengan sidik jari saja
+        if fingerprint_id is not None:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+            user_data = cursor.fetchone()
+            conn.close()
+            
+            if user_data:
+                print(f"[+] Sidik jari dikenali sebagai {user_data[1]} (tanpa verifikasi wajah)")
+                display_lcd("Sidik jari OK", user_data[1])
+                return True, user_data
+            else:
+                return False, None
         
-        # Setup untuk pengambilan wajah
-        face_found = False
-        best_match_name = None
-        best_match_score = 0
-        face_embedding = None
-        start_time = time.time()
-        timeout = 15  # 15 detik timeout
+        return False, None
+    
+    # Jika verifikasi dengan sidik jari, cek apakah nama pengguna ada dalam embeddings
+    target_name = None
+    if fingerprint_id is not None:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+        result = cursor.fetchone()
+        conn.close()
         
-        print("[+] Mencari wajah dalam frame...")
-        
-        while time.time() - start_time < timeout and not face_found:
-            try:
-                # Ambil frame dari kamera
-                ret, frame = cap.read()
-                if not ret or frame is None:
-                    print("[!] Gagal membaca frame dari kamera")
-                    continue
+        if result:
+            target_name = result[0]
+            if target_name not in embeddings_dict:
+                print(f"[!] Data wajah untuk {target_name} tidak ditemukan")
+                display_lcd("Data Wajah", f"Tidak ada: {target_name}")
+                cap.release()
                 
-                # Deteksi wajah
-                face_img, bbox = detect_face_mtcnn(frame)
+                # Verifikasi dengan sidik jari saja
+                print(f"[+] Sidik jari dikenali sebagai {target_name} (tanpa verifikasi wajah)")
+                display_lcd("Sidik jari OK", target_name)
                 
-                if face_img is not None and bbox is not None:
-                    # Tampilkan kotak di sekitar wajah
-                    frame = draw_face_box(frame, bbox)
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+                user_data = cursor.fetchone()
+                conn.close()
+                
+                return True, user_data
+    
+    # Setup untuk pengambilan wajah
+    face_verified = False
+    best_match_name = None
+    best_match_score = 0
+    face_embedding = None
+    start_time = time.time()
+    timeout = 15  # 15 detik timeout
+    
+    print("[+] Silakan lihat ke kamera...")
+    display_lcd("Verifikasi", "Lihat ke kamera")
+    
+    while time.time() - start_time < timeout and not face_verified:
+        try:
+            # Ambil frame dari kamera
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                print("[!] Gagal membaca frame dari kamera")
+                continue
+            
+            # Deteksi wajah
+            face_img, bbox = detect_face_mtcnn(frame)
+            
+            if face_img is not None and bbox is not None:
+                # Tampilkan kotak di sekitar wajah
+                frame = draw_face_box(frame, bbox)
+                
+                # Tampilkan nama target jika verifikasi sidik jari
+                if target_name:
+                    cv2.putText(frame, f"Verifikasi: {target_name}", (10, 30), 
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                
+                # Proses wajah untuk pengenalan
+                face_tensor = preprocess_face(face_img)
+                if face_tensor is not None:
+                    # Ekstrak embedding
+                    face_embedding = extract_embedding(face_tensor)
                     
-                    # Proses wajah
-                    face_tensor = preprocess_face(face_img)
-                    if face_tensor is not None:
-                        # Cek orientasi wajah
-                        pitch, yaw, roll = calculate_face_orientation(bbox, frame.shape)
-                        frontal = is_face_frontal(pitch, yaw, roll)
+                    # Mode verifikasi sidik jari + wajah
+                    if target_name:
+                        # Ambil embedding yang tersimpan untuk pengguna ini
+                        saved_embeddings = embeddings_dict[target_name]
                         
-                        # Tampilkan informasi orientasi wajah pada frame
-                        cv2.putText(frame, f"Pitch: {pitch:.1f}", (10, 60), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                        cv2.putText(frame, f"Yaw: {yaw:.1f}", (10, 80), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                        cv2.putText(frame, f"Roll: {roll:.1f}", (10, 100), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                        cv2.putText(frame, f"Frontal: {'Ya' if frontal else 'Tidak'}", (10, 120), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0) if frontal else (0, 0, 255), 1)
+                        # Bandingkan embedding
+                        if isinstance(saved_embeddings, list):
+                            # Format list (multiple embeddings)
+                            best_similarity = 0
+                            for emb in saved_embeddings:
+                                similarity = compute_similarity(face_embedding, emb)
+                                best_similarity = max(best_similarity, similarity)
+                        else:
+                            # Format array tunggal (satu embedding)
+                            best_similarity = compute_similarity(face_embedding, saved_embeddings)
                         
-                        # Hanya lakukan pengenalan jika wajah frontal
-                        if frontal:
-                            # Ekstrak embedding
-                            face_embedding = extract_embedding(face_tensor)
-                            
-                            # Bandingkan dengan database
-                            for name, saved_embeddings in embeddings_dict.items():
-                                # Handle kedua format embedding (list atau array tunggal)
-                                if isinstance(saved_embeddings, list):
-                                    # Format list (multiple embeddings)
-                                    for emb in saved_embeddings:
-                                        similarity = compute_similarity(face_embedding, emb)
-                                        if similarity > best_match_score:
-                                            best_match_score = similarity
-                                            best_match_name = name
-                                else:
-                                    # Format array tunggal (satu embedding)
-                                    similarity = compute_similarity(face_embedding, saved_embeddings)
+                        # Tampilkan skor kecocokan
+                        cv2.putText(frame, f"Kecocokan: {best_similarity:.2f}", (10, 60), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        
+                        # Cek apakah wajah cocok
+                        if best_similarity >= threshold:
+                            cv2.putText(frame, f"Verifikasi Berhasil: {target_name} ({best_similarity:.2f})", 
+                                      (10, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            face_verified = True
+                            best_match_name = target_name
+                            best_match_score = best_similarity
+                        else:
+                            cv2.putText(frame, f"Verifikasi Gagal ({best_similarity:.2f})", 
+                                      (10, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    
+                    # Mode pengenalan wajah saja (tanpa sidik jari)
+                    else:
+                        # Bandingkan dengan semua embedding
+                        for name, saved_embeddings in embeddings_dict.items():
+                            # Handle kedua format embedding
+                            if isinstance(saved_embeddings, list):
+                                # Format list (multiple embeddings)
+                                for emb in saved_embeddings:
+                                    similarity = compute_similarity(face_embedding, emb)
                                     if similarity > best_match_score:
                                         best_match_score = similarity
                                         best_match_name = name
-                            
-                            # Tampilkan skor kecocokan
-                            cv2.putText(frame, f"Kecocokan: {best_match_score:.2f}", (10, 140), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                            
-                            # Periksa apakah kecocokan cukup tinggi
-                            if best_match_score >= threshold:
-                                cv2.putText(frame, f"Dikenali: {best_match_name} ({best_match_score:.2f})", 
-                                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                                face_found = True
                             else:
-                                cv2.putText(frame, f"Tidak dikenali ({best_match_score:.2f})", 
-                                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                
-                # Tampilkan waktu tersisa
-                remaining = int(timeout - (time.time() - start_time))
-                cv2.putText(frame, f"Waktu: {remaining}s", (10, frame.shape[0] - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                
-                # Tampilkan threshold
-                cv2.putText(frame, f"Threshold: {threshold}", (frame.shape[1] - 150, frame.shape[0] - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                
-                # Tampilkan frame
-                cv2.imshow("Verifikasi Wajah", frame)
-                if cv2.waitKey(1) == 27:  # ESC
-                    break
-            except Exception as e:
-                print(f"[!] Error saat mendeteksi wajah: {e}")
-                continue
+                                # Format array tunggal (satu embedding)
+                                similarity = compute_similarity(face_embedding, saved_embeddings)
+                                if similarity > best_match_score:
+                                    best_match_score = similarity
+                                    best_match_name = name
+                        
+                        # Tampilkan skor kecocokan
+                        cv2.putText(frame, f"Kecocokan: {best_match_score:.2f}", (10, 60), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        
+                        # Cek apakah kecocokan cukup tinggi
+                        if best_match_score >= threshold:
+                            cv2.putText(frame, f"Dikenali: {best_match_name} ({best_match_score:.2f})", 
+                                      (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            face_verified = True
+                        else:
+                            cv2.putText(frame, f"Tidak dikenali ({best_match_score:.2f})", 
+                                      (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
+            # Tampilkan waktu tersisa
+            remaining = int(timeout - (time.time() - start_time))
+            cv2.putText(frame, f"Waktu: {remaining}s", (10, frame.shape[0] - 10), 
+                      cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            
+            # Tampilkan threshold
+            cv2.putText(frame, f"Threshold: {threshold}", (frame.shape[1] - 150, frame.shape[0] - 10), 
+                      cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            
+            # Tampilkan frame
+            cv2.imshow("Verifikasi Wajah", frame)
+            if cv2.waitKey(1) == 27:  # ESC
+                break
+        except Exception as e:
+            print(f"[!] Error saat memproses frame: {e}")
+            continue
+    
+    # Bersihkan resources
+    cap.release()
+    cv2.destroyAllWindows()
+    
+    # Jika verifikasi sukses
+    if face_verified:
+        # Jika verifikasi sidik jari + wajah
+        if fingerprint_id is not None:
+            print(f"[+] Verifikasi wajah berhasil untuk {target_name}")
+            display_lcd("Verifikasi OK", target_name)
+            
+            # Ambil data pengguna dari database
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+            user_data = cursor.fetchone()
+            conn.close()
+            
+            return True, user_data
         
-        # Bersihkan resource
-        cap.release()
-        cv2.destroyAllWindows()
-        
-        # Jika wajah ditemukan dan dikenali
-        if face_found:
-            # Cari pengguna di database berdasarkan nama
+        # Jika hanya verifikasi wajah
+        else:
+            print(f"[+] Wajah dikenali sebagai {best_match_name} (skor: {best_match_score:.2f})")
+            display_lcd("Wajah dikenali", best_match_name)
+            
+            # Ambil data pengguna dari database
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE name = ?", (best_match_name,))
@@ -1149,181 +1237,33 @@ def verify_identity(fingerprint_id=None, face_check=True, threshold=0.45, resolu
             conn.close()
             
             if user_data:
-                print(f"[+] Wajah dikenali sebagai {best_match_name} (skor: {best_match_score:.2f})")
-                display_lcd("Wajah dikenali", best_match_name)
                 return True, user_data
             else:
                 print(f"[!] Wajah dikenali sebagai {best_match_name} tapi tidak ada dalam database")
                 display_lcd("Error", "Data tidak cocok")
                 return False, None
-        else:
-            print("[!] Wajah tidak dikenali atau timeout")
-            display_lcd("Wajah", "Tidak dikenali")
-            # Jika wajah tidak dikenali, simpan sebagai wajah tidak dikenal
-            capture_unknown_face(resolution=resolution, fps=fps)
-            return False, None
-    
-    # Jika ada fingerprint_id
     else:
-        # Cari pengguna di database
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, name, fingerprint_id, face_embedding_path FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
-        user_data = cursor.fetchone()
-        conn.close()
+        # Jika verifikasi gagal
+        print("[!] Verifikasi wajah gagal")
+        display_lcd("Verifikasi", "Gagal")
         
-        if not user_data:
-            print(f"[!] Sidik jari dengan ID {fingerprint_id} tidak terdaftar dalam database")
-            display_lcd("Sidik jari", "Tidak terdaftar")
-            return False, None
-        
-        user_id, name, _, face_embedding_path = user_data
-        
-        print(f"[+] Sidik jari dikenali sebagai {name}")
-        display_lcd("Sidik jari OK", name)
-        
-        # Jika tidak perlu cek wajah, langsung return True
-        if not face_check:
+        # Jika ada sidik jari, berikan akses hanya berdasarkan sidik jari
+        if fingerprint_id is not None:
+            print(f"[+] Akses diberikan berdasarkan sidik jari saja untuk keamanan")
+            display_lcd("Akses Diberikan", "Sidik Jari")
+            
+            # Ambil data pengguna dari database
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+            user_data = cursor.fetchone()
+            conn.close()
+            
             return True, user_data
         
-        # Jika perlu cek wajah
-        print("[+] Memverifikasi wajah sebagai langkah kedua...")
-        display_lcd("Verifikasi", "wajah...")
-        
-        # Cek apakah ada embedding wajah tersimpan
-        if face_embedding_path and ARCFACE_AVAILABLE:
-            # Lakukan verifikasi wajah
-            cap = initialize_camera(resolution=resolution, fps=fps)
-            if not cap:
-                print("[!] Gagal inisialisasi kamera")
-                display_lcd("Error", "Kamera")
-                return False, None
-            
-            # Muat database embedding
-            try:
-                embeddings_dict = load_embeddings(EMBEDDINGS_PATH)
-                if not embeddings_dict or name not in embeddings_dict:
-                    print(f"[!] Data wajah untuk {name} tidak ditemukan")
-                    display_lcd("Data Wajah", f"Tidak ada: {name}")
-                    cap.release()
-                    return False, None
-            except Exception as e:
-                print(f"[!] Gagal memuat embeddings: {e}")
-                display_lcd("Error", "Data wajah")
-                cap.release()
-                return False, None
-            
-            # Ambil embedding tersimpan
-            saved_embeddings = embeddings_dict[name]
-            
-            print("[+] Silakan lihat ke kamera untuk verifikasi wajah...")
-            display_lcd("Verifikasi", "Lihat ke kamera")
-            
-            # Setup untuk pengambilan wajah
-            face_verified = False
-            start_time = time.time()
-            timeout = 15
-            
-            while time.time() - start_time < timeout and not face_verified:
-                try:
-                    # Ambil frame dari kamera
-                    ret, frame = cap.read()
-                    if not ret or frame is None:
-                        print("[!] Gagal membaca frame dari kamera")
-                        continue
-                    
-                    # Deteksi wajah
-                    face_img, bbox = detect_face_mtcnn(frame)
-                    
-                    if face_img is not None and bbox is not None:
-                        # Tampilkan kotak di sekitar wajah
-                        frame = draw_face_box(frame, bbox)
-                        
-                        # Proses wajah
-                        face_tensor = preprocess_face(face_img)
-                        if face_tensor is not None:
-                            # Cek orientasi wajah
-                            pitch, yaw, roll = calculate_face_orientation(bbox, frame.shape)
-                            frontal = is_face_frontal(pitch, yaw, roll)
-                            
-                            # Tampilkan informasi orientasi wajah pada frame
-                            cv2.putText(frame, f"Pitch: {pitch:.1f}", (10, 60), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                            cv2.putText(frame, f"Yaw: {yaw:.1f}", (10, 80), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                            cv2.putText(frame, f"Roll: {roll:.1f}", (10, 100), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                            cv2.putText(frame, f"Frontal: {'Ya' if frontal else 'Tidak'}", (10, 120), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0) if frontal else (0, 0, 255), 1)
-                            
-                            # Hanya lakukan pengenalan jika wajah frontal
-                            if frontal:
-                                # Ekstrak embedding
-                                face_embedding = extract_embedding(face_tensor)
-                                
-                                # Bandingkan dengan embedding tersimpan
-                                if isinstance(saved_embeddings, list):
-                                    # Format list (multiple embeddings)
-                                    best_similarity = 0
-                                    for emb in saved_embeddings:
-                                        similarity = compute_similarity(face_embedding, emb)
-                                        best_similarity = max(best_similarity, similarity)
-                                else:
-                                    # Format array tunggal (satu embedding)
-                                    best_similarity = compute_similarity(face_embedding, saved_embeddings)
-                                
-                                # Tampilkan skor kecocokan
-                                cv2.putText(frame, f"Kecocokan: {best_similarity:.2f}", (10, 140), 
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                                
-                                # Verifikasi apakah wajah cocok dengan sidik jari
-                                if best_similarity >= threshold:
-                                    cv2.putText(frame, f"Verifikasi Berhasil: {name} ({best_similarity:.2f})", 
-                                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                                    face_verified = True
-                                else:
-                                    cv2.putText(frame, f"Verifikasi Gagal ({best_similarity:.2f})", 
-                                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    
-                    # Tampilkan waktu tersisa
-                    remaining = int(timeout - (time.time() - start_time))
-                    cv2.putText(frame, f"Waktu: {remaining}s", (10, frame.shape[0] - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                    
-                    # Tampilkan threshold
-                    cv2.putText(frame, f"Threshold: {threshold}", (frame.shape[1] - 150, frame.shape[0] - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                    
-                    # Tampilkan nama yang diverifikasi
-                    cv2.putText(frame, f"Verifikasi: {name}", (frame.shape[1] - 200, 30), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-                    
-                    # Tampilkan frame
-                    cv2.imshow("Verifikasi Wajah", frame)
-                    if cv2.waitKey(1) == 27:  # ESC
-                        break
-                except Exception as e:
-                    print(f"[!] Error saat mendeteksi wajah: {e}")
-                    continue
-            
-            # Bersihkan resource
-            cap.release()
-            cv2.destroyAllWindows()
-            
-            if face_verified:
-                print(f"[+] Verifikasi wajah berhasil untuk {name}")
-                display_lcd("Verifikasi OK", name)
-                return True, user_data
-            else:
-                print(f"[!] Verifikasi wajah gagal untuk {name}")
-                display_lcd("Verifikasi", "Gagal")
-                # Simpan wajah yang tidak cocok
-                capture_unknown_face(resolution=resolution, fps=fps)
-                return False, None
-        else:
-            print("[!] Tidak ada data wajah tersimpan untuk verifikasi")
-            display_lcd("Tidak ada", "Data wajah")
-            return True, user_data  # Tetap return True karena sidik jari cocok
+        # Tangkap wajah tidak dikenal
+        capture_unknown_face(resolution=resolution, fps=fps)
+        return False, None
 
 def display_embedding_file(file_path):
     """
@@ -1487,6 +1427,42 @@ def run_access_control_system():
         print("[INFO] Sistem kontrol akses dimulai")
         display_lcd("Sistem Siap", "Tempelkan jari")
         
+        # Pra-inisialisasi kamera sekali saja di awal untuk menghemat waktu
+        print("[INFO] Pre-inisialisasi kamera...")
+        cap = None
+        try:
+            # Pendekatan sederhana seperti di combined_biometric_test_percobaan.py
+            for device in CAMERA_DEVICES:
+                print(f"[INFO] Mencoba membuka kamera: {device}")
+                try:
+                    cap = cv2.VideoCapture(device)
+                    if cap.isOpened():
+                        print(f"[INFO] Berhasil membuka kamera: {device}")
+                        
+                        # Coba baca frame untuk verifikasi
+                        ret, frame = cap.read()
+                        if ret and frame is not None:
+                            print(f"[INFO] Kamera {device} berhasil dibaca")
+                            # Tutup kamera untuk digunakan nanti
+                            cap.release()
+                            cap = None
+                            break
+                        else:
+                            print(f"[INFO] Kamera {device} tidak dapat membaca frame")
+                            cap.release()
+                            cap = None
+                    else:
+                        print(f"[INFO] Gagal membuka kamera: {device}")
+                except Exception as e:
+                    print(f"[INFO] Error saat membuka kamera {device}: {e}")
+                    if cap:
+                        cap.release()
+                        cap = None
+            
+            print("[INFO] Pre-inisialisasi kamera selesai")
+        except Exception as e:
+            print(f"[INFO] Error pada pre-inisialisasi kamera: {e}")
+        
         while True:
             # Pindai sidik jari terlebih dahulu
             fingerprint_id = None
@@ -1500,14 +1476,44 @@ def run_access_control_system():
             # Jika sidik jari terdeteksi, lakukan verifikasi wajah
             if fingerprint_id is not None:
                 try:
-                    verification_result, user_data = verify_identity(fingerprint_id=fingerprint_id)
-                    if verification_result:
-                        print("[+] Akses diberikan")
-                        # Buka pintu
-                        unlock_door()
-                        time.sleep(2)
+                    # Langsung verifikasi tanpa wajah jika pengguna memilih
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id, name, face_embedding_path FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+                    user_data = cursor.fetchone()
+                    conn.close()
+                    
+                    if user_data:
+                        user_id, name, face_embedding_path = user_data
+                        
+                        # Jika tidak ada data wajah atau tidak menggunakan ArcFace
+                        if not face_embedding_path or not ARCFACE_AVAILABLE:
+                            print(f"[INFO] Pengguna {name} dikenali hanya dengan sidik jari (tidak ada verifikasi wajah)")
+                            display_lcd(f"Sidik jari OK", f"{name}")
+                            # Akses diberikan hanya dengan sidik jari
+                            print("[+] Akses diberikan (tanpa verifikasi wajah)")
+                            unlock_door()
+                            time.sleep(2)
+                            continue
+                        
+                        # Lakukan verifikasi wajah jika ada data wajah
+                        print(f"[INFO] Verifikasi wajah untuk pengguna {name}")
+                        display_lcd("Verifikasi", "Lihat ke kamera")
+                        
+                        # Gunakan pendekatan verifikasi yang lebih sederhana
+                        verification_result, user_data = verify_identity(fingerprint_id=fingerprint_id, threshold=0.4)
+                        
+                        if verification_result:
+                            print("[+] Akses diberikan")
+                            # Buka pintu
+                            unlock_door()
+                            time.sleep(2)
+                        else:
+                            print("[!] Akses ditolak")
+                            time.sleep(2)
                     else:
-                        print("[!] Akses ditolak")
+                        print("[!] Data pengguna tidak ditemukan di database")
+                        display_lcd("Error", "Data tidak ada")
                         time.sleep(2)
                 except Exception as e:
                     print(f"[!] Error saat melakukan verifikasi: {e}")
