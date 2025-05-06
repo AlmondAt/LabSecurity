@@ -14,7 +14,7 @@ import datetime
 # Import modul ArcFace dan lainnya
 try:
     from mtcnn_utils import detect_face_mtcnn, draw_face_box
-    from arcface_utils import preprocess_face, extract_embedding, save_embeddings, load_embeddings
+    from arcface_utils import preprocess_face, extract_embedding, save_embeddings, load_embeddings, compute_similarity
     from head_pose import calculate_face_orientation, draw_face_orientation, is_face_frontal
     ARCFACE_AVAILABLE = True
 except ImportError:
@@ -1032,11 +1032,14 @@ def verify_identity(fingerprint_id=None, face_check=True, threshold=0.4, resolut
                 if user_data:
                     print(f"[+] Sidik jari dikenali sebagai {user_data[1]} (tanpa verifikasi wajah)")
                     display_lcd("Sidik jari OK", user_data[1])
+                    
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id, name, fingerprint_id FROM users WHERE fingerprint_id = ?", (fingerprint_id,))
+                    user_data = cursor.fetchone()
+                    conn.close()
+                    
                     return True, user_data
-                else:
-                    return False, None
-            
-            return False, None
     except Exception as e:
         print(f"[!] Gagal memuat embeddings: {e}")
         display_lcd("Error", "Data wajah")
